@@ -1,9 +1,9 @@
 // ══════════════════════════════════════════
-//  LifeSync V2.1 — service-worker.js
+//  LifeSync V2.2 — service-worker.js
 //  PWA Cache: offline-first, background sync
 // ══════════════════════════════════════════
 
-const CACHE_NAME    = "lifesync-v2.1";
+const CACHE_NAME    = "lifesync-v2.2";
 const OFFLINE_URL   = "./offline.html";
 
 // ── Assets to pre-cache on install ───────────────────────────────────────────
@@ -30,7 +30,7 @@ const NETWORK_FIRST_ORIGINS = [
 
 // ── Install: pre-cache core assets ───────────────────────────────────────────
 self.addEventListener("install", event => {
-  console.log("[SW v2.1] install");
+  console.log("[SW v2.2] install");
   self.skipWaiting();
 
   event.waitUntil(
@@ -46,7 +46,7 @@ self.addEventListener("install", event => {
 
 // ── Activate: clean up old caches ────────────────────────────────────────────
 self.addEventListener("activate", event => {
-  console.log("[SW v2.1] activate");
+  console.log("[SW v2.2] activate");
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
