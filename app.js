@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════
 // LifeSync V2.2 — app.js
-// Ultra Core Bootstrap System
-// Real Reminder • Smart UI • PWA Optimized
+// FULL CORE APP SYSTEM
 // Replace FULL old app.js
 // ══════════════════════════════════════════
 
@@ -9,41 +8,38 @@
 // IMPORTS
 // ────────────────────────────────────────
 
-import Notifications from './notifications.js';
-import ReminderSys from './reminder-system.js';
-import Settings from './settings-manager.js';
+import Notifications
+from './notifications.js';
+
+import ReminderSys
+from './reminder-system.js';
+
+import Settings
+from './settings-manager.js';
 
 // ────────────────────────────────────────
-// BOOT
+// APP START
 // ────────────────────────────────────────
 
 document.addEventListener(
-  'DOMContentLoaded',
-  async () => {
 
-    console.log(
-      '🚀 LifeSync V2.2 Booting...'
-    );
+  'DOMContentLoaded',
+
+  () => {
 
     // SETTINGS
     Settings.migrate();
 
-    // NOTIFICATION SETTINGS
-    if (window.app?.settings) {
-
-      Notifications.soundEnabled =
-        window.app.settings.sound !== false;
-
-      Notifications.vibEnabled =
-        window.app.settings.vibrate !== false;
-
-    }
-
     // START REMINDER ENGINE
     ReminderSys.start();
 
-    // PATCH SYSTEMS
+    // CHECK ALL
+    ReminderSys._checkAll();
+
+    // PATCH RENDER
     patchReminderRender();
+
+    // PATCH NOTIFICATION PAGE
     patchNotificationPage();
 
     // SERVICE WORKER
@@ -52,86 +48,83 @@ document.addEventListener(
     // GLOBAL FUNCTIONS
     exposeGlobals();
 
-    // ONLINE/OFFLINE
-    setupConnectionListener();
-
-    // APP RESTORE
-    setupVisibilityRefresh();
-
-    // AUTO SAVE
-    setupAutoSave();
-
-    // DAILY REFRESH
-    setupDailyRefresh();
-
-    // PERFORMANCE CLEANUP
-    setupMemoryCleanup();
-
-    // FIRST RENDER
-    window.renderReminders?.();
-    window.renderHome?.();
-    window.renderCalendar?.();
+    // ONLINE STATUS
+    monitorConnection();
 
     console.log(
-      '✅ LifeSync V2.2 Ready'
+      '🚀 LifeSync V2.2 Ready'
     );
 
   }
+
 );
 
 // ────────────────────────────────────────
-// REMINDER PATCH
+// REMINDER RENDER
 // ────────────────────────────────────────
 
 function patchReminderRender() {
 
-  const original =
+  const oldRender =
     window.renderReminders;
 
-  window.renderReminders = function() {
+  window.renderReminders =
+    function() {
 
-    if (original)
-      original();
+      if (oldRender)
+        oldRender();
 
-    const list =
-      document.getElementById(
-        'remind-list'
+      const list =
+        document.getElementById(
+          'remind-list'
+        );
+
+      if (!list) return;
+
+      const reminders =
+        window.app?.reminders || [];
+
+      // SORT
+      reminders.sort(
+
+        (a,b) =>
+
+        (a.daysLeft || 999) -
+
+        (b.daysLeft || 999)
+
       );
 
-    if (!list) return;
+      // EMPTY
+      if (
+        reminders.length === 0
+      ) {
 
-    const reminders =
-      window.app?.reminders || [];
-
-    if (!reminders.length) {
-
-      list.innerHTML = `
+        list.innerHTML = `
 
         <div style="
-          color:#666;
           text-align:center;
-          padding:28px;
+          color:#666;
+          padding:30px;
           font-size:13px;
         ">
+
           No reminders yet
+
         </div>
 
-      `;
+        `;
 
-      return;
-    }
+        return;
 
-    const sorted = reminders.sort(
-      (a,b) =>
-        (a.daysLeft || 9999) -
-        (b.daysLeft || 9999)
-    );
+      }
 
-    list.innerHTML =
-      sorted.map(buildReminderCard)
-      .join('');
+      // BUILD
+      list.innerHTML = reminders
+        .map(buildReminderCard)
+        .join('');
 
-  };
+    };
 
 }
 
@@ -141,46 +134,62 @@ function patchReminderRender() {
 
 function buildReminderCard(r) {
 
-  const status =
-    r.status || 'active';
+  const isCompleted =
+    r.status === 'completed';
+
+  const isMissed =
+    r.status === 'missed';
 
   const urgent =
-    r.daysLeft <= 1 &&
-    status === 'active';
+    (r.daysLeft || 0) <= 3 &&
+    !isCompleted &&
+    !isMissed;
 
   return `
 
   <div
-    class="card remind-card ${urgent ? 'urgent-live' : ''}"
-    data-reminder-id="${r.id}"
-    style="
-      margin-bottom:12px;
-      border:
-        1px solid ${
-          status === 'missed'
-            ? 'rgba(255,45,120,0.3)'
-            : 'rgba(255,255,255,0.06)'
-        };
+
+    class="
+      card
+      ${isCompleted ? 'remind-card-completed' : ''}
+      ${isMissed ? 'remind-card-missed' : ''}
     "
+
+    data-reminder-id="${r.id}"
+
+    style="
+      margin-bottom:14px;
+      border-color:${r.color || '#00d4ff'}33;
+      box-shadow:0 0 20px ${r.color || '#00d4ff'}18;
+    "
+
   >
 
     <div class="remind-card">
 
-      <div
-        class="remind-icon"
-        style="
-          background:${r.color || '#00d4ff'}22;
-        "
-      >
-        ${r.icon || '⏰'}
-      </div>
+      <!-- ICON -->
 
       <div
+
+        class="remind-icon"
+
         style="
-          flex:1;
-          min-width:0;
+          background:${r.color || '#00d4ff'}15;
+          border:1px solid ${r.color || '#00d4ff'}33;
         "
+
       >
+
+        ${r.icon || '⏰'}
+
+      </div>
+
+      <!-- CONTENT -->
+
+      <div style="
+        flex:1;
+        min-width:0;
+      ">
 
         <div style="
           display:flex;
@@ -191,82 +200,92 @@ function buildReminderCard(r) {
 
           <div style="
             font-size:14px;
-            font-weight:700;
+            font-weight:800;
             color:${
-              status === 'completed'
-                ? '#666'
-                : '#fff'
+              isCompleted
+              ? '#666'
+              : '#fff'
             };
+
+            ${
+              isCompleted
+              ? 'text-decoration:line-through;'
+              : ''
+            }
+
           ">
 
             ${r.title}
 
           </div>
 
-          ${
-            status === 'completed'
-              ? `
-                <span class="remind-status-badge remind-status-completed">
-                  ✓ DONE
-                </span>
-              `
-              : ''
-          }
+          ${urgent ? `
+          <div class="urgent-pulse"
+               style="
+                 width:10px;
+                 height:10px;
+                 border-radius:50%;
+                 background:#ff2d78;
+               ">
+          </div>
+          ` : ''}
 
-          ${
-            status === 'missed'
-              ? `
-                <span class="remind-status-badge remind-status-missed">
-                  ❌ MISSED
-                </span>
-              `
-              : ''
-          }
+          ${isCompleted ? `
+          <span class="
+            remind-status-badge
+            remind-status-completed
+          ">
+            ✓ DONE
+          </span>
+          ` : ''}
+
+          ${isMissed ? `
+          <span class="
+            remind-status-badge
+            remind-status-missed
+          ">
+            ❌ MISSED
+          </span>
+          ` : ''}
 
         </div>
+
+        <!-- DATE -->
 
         <div style="
           font-size:11px;
           color:#777;
           margin-top:4px;
         ">
-          ${r.label || ''}
+
+          ${new Date(r.date)
+            .toLocaleDateString()}
+
         </div>
 
       </div>
 
+      <!-- LABEL -->
+
       <div style="
         text-align:right;
+        margin-left:10px;
       ">
 
-        ${
-          status === 'active'
-            ? `
-            <div
-              class="remind-days"
-              style="
-                color:${
-                  urgent
-                    ? '#ff2d78'
-                    : '#00d4ff'
-                };
-              "
-            >
-              ${r.daysLeft}
-            </div>
+        <div class="remind-days"
+             style="
+               color:${r.color || '#00d4ff'};
+             ">
 
-            <div
-              class="remind-dayslabel"
-            >
-              days
-            </div>
-            `
-            : ''
-        }
+          ${r.label || 'No date'}
+
+        </div>
 
       </div>
 
     </div>
+
+    <!-- ACTIONS -->
 
     <div style="
       display:flex;
@@ -275,36 +294,68 @@ function buildReminderCard(r) {
       flex-wrap:wrap;
     ">
 
-      ${
-        status !== 'completed'
-          ? `
-          <button
-            class="remind-action-btn btn-complete"
-            onclick="completeReminder(${r.id})"
-          >
-            ✓ Complete
-          </button>
-          `
-          : ''
-      }
+      ${!isCompleted ? `
 
       <button
-        class="remind-action-btn btn-snooze"
-        onclick="editReminder(${r.id})"
+        class="
+          remind-action-btn
+          btn-complete
+        "
+        onclick="
+          completeReminder(${r.id})
+        "
       >
-        ✏️ Edit
+
+        ✓ Complete
+
+      </button>
+
+      ` : ''}
+
+      ${!isCompleted ? `
+
+      <button
+        class="
+          remind-action-btn
+          btn-snooze
+        "
+        onclick="
+          snoozeReminder(${r.id},1)
+        "
+      >
+
+        😴 Snooze
+
+      </button>
+
+      ` : ''}
+
+      <button
+        class="
+          remind-action-btn
+          btn-delete
+        "
+        onclick="
+          deleteReminder(${r.id})
+        "
+      >
+
+        🗑 Delete
+
       </button>
 
       <button
-        class="remind-action-btn"
-        style="
-          background:rgba(255,45,120,0.12);
-          border:1px solid rgba(255,45,120,0.3);
-          color:#ff2d78;
+        class="
+          remind-action-btn
+          btn-edit
         "
-        onclick="deleteReminder(${r.id})"
+        onclick="
+          editReminder?.(${r.id})
+        "
       >
-        🗑 Delete
+
+        ✏️ Edit
+
       </button>
 
     </div>
@@ -312,94 +363,79 @@ function buildReminderCard(r) {
   </div>
 
   `;
+
 }
 
 // ────────────────────────────────────────
-// NOTIFICATION PAGE PATCH
+// NOTIFICATION PAGE
 // ────────────────────────────────────────
 
 function patchNotificationPage() {
 
-  const original =
+  const oldNotif =
     window.renderNotifications;
 
-  window.renderNotifications = function() {
+  window.renderNotifications =
+    function() {
 
-    if (original)
-      original();
+      if (oldNotif)
+        oldNotif();
 
-    const counts =
-      window.ReminderSystem?.getCounts?.() || {};
+      const stats =
+        document.getElementById(
+          'notif-stats-row'
+        );
 
-    const el =
-      document.getElementById(
-        'notif-stats-row'
-      );
+      if (!stats) return;
 
-    if (!el) return;
+      const reminders =
+        window.app?.reminders || [];
 
-    el.innerHTML = `
+      const completed =
+        reminders.filter(
 
-      <div class="card">
+          r => r.status === 'completed'
 
-        <div style="
-          font-size:22px;
-          font-weight:900;
-          color:#00e676;
-        ">
-          ${counts.completed || 0}
-        </div>
+        ).length;
 
-        <div style="
-          font-size:10px;
-          color:#666;
-        ">
-          Completed
-        </div>
+      const missed =
+        reminders.filter(
 
+          r => r.status === 'missed'
+
+        ).length;
+
+      const urgent =
+        reminders.filter(
+
+          r =>
+
+          (r.daysLeft || 0) <= 3 &&
+
+          r.status !== 'completed'
+
+        ).length;
+
+      stats.innerHTML = `
+
+      <div class="notif-stat-card">
+        <div>${completed}</div>
+        <span>Completed</span>
       </div>
 
-      <div class="card">
-
-        <div style="
-          font-size:22px;
-          font-weight:900;
-          color:#ff2d78;
-        ">
-          ${counts.missed || 0}
-        </div>
-
-        <div style="
-          font-size:10px;
-          color:#666;
-        ">
-          Missed
-        </div>
-
+      <div class="notif-stat-card">
+        <div>${missed}</div>
+        <span>Missed</span>
       </div>
 
-      <div class="card">
-
-        <div style="
-          font-size:22px;
-          font-weight:900;
-          color:#ffb300;
-        ">
-          ${counts.urgent || 0}
-        </div>
-
-        <div style="
-          font-size:10px;
-          color:#666;
-        ">
-          Urgent
-        </div>
-
+      <div class="notif-stat-card">
+        <div>${urgent}</div>
+        <span>Urgent</span>
       </div>
 
-    `;
+      `;
 
-  };
+    };
 
 }
 
@@ -413,20 +449,23 @@ function registerSW() {
     !('serviceWorker' in navigator)
   ) return;
 
-  navigator.serviceWorker
+  navigator
+    .serviceWorker
     .register('./service-worker.js')
+
     .then(() => {
 
       console.log(
-        '✅ SW V2.2 Registered'
+        '✅ SW Registered'
       );
 
     })
+
     .catch(err => {
 
       console.warn(
         'SW Error:',
-        err
+        err.message
       );
 
     });
@@ -440,78 +479,74 @@ function registerSW() {
 function exposeGlobals() {
 
   window.completeReminder =
-    id =>
-      window.ReminderSystem?.complete(id);
+    id => {
+
+      window
+        .ReminderSystem
+        ?.complete(id);
+
+    };
 
   window.deleteReminder =
-    id =>
-      window.ReminderSystem?.delete(id);
+    id => {
+
+      window
+        .ReminderSystem
+        ?.delete(id);
+
+    };
+
+  window.snoozeReminder =
+    (id,days=1) => {
+
+      window
+        .ReminderSystem
+        ?.snooze(id,days);
+
+    };
 
   window.playNotifSound =
-    type =>
-      Notifications.playSound(type);
+    type => {
 
-  window.exportBackup =
-    () =>
-      Settings.exportData();
+      Notifications
+        ?.playSound(type);
+
+    };
 
 }
 
 // ────────────────────────────────────────
-// CONNECTION LISTENER
+// ONLINE/OFFLINE
 // ────────────────────────────────────────
 
-function setupConnectionListener() {
-
-  window.addEventListener(
-    'online',
-    () => {
-
-      window.showToast?.(
-        '🌐 Back Online'
-      );
-
-      document.body.classList.remove(
-        'offline-mode'
-      );
-
-    }
-  );
+function monitorConnection() {
 
   window.addEventListener(
     'offline',
     () => {
 
-      window.showToast?.(
-        '📴 Offline Mode'
-      );
-
       document.body.classList.add(
         'offline-mode'
       );
 
+      window.showToast?.(
+        '📴 Offline Mode'
+      );
+
     }
   );
 
-}
-
-// ────────────────────────────────────────
-// APP RESTORE
-// ────────────────────────────────────────
-
-function setupVisibilityRefresh() {
-
-  document.addEventListener(
-    'visibilitychange',
+  window.addEventListener(
+    'online',
     () => {
 
-      if (!document.hidden) {
+      document.body.classList.remove(
+        'offline-mode'
+      );
 
-        window.renderReminders?.();
-        window.renderHome?.();
-        window.renderCalendar?.();
-
-      }
+      window.showToast?.(
+        '🌐 Back Online'
+      );
 
     }
   );
@@ -519,79 +554,16 @@ function setupVisibilityRefresh() {
 }
 
 // ────────────────────────────────────────
-// AUTO SAVE
+// LIVE REFRESH
 // ────────────────────────────────────────
 
-function setupAutoSave() {
+setInterval(() => {
 
-  setInterval(() => {
+  window
+    .ReminderSystem
+    ?._checkAll();
 
-    window.saveData?.();
-
-  }, 1000 * 60 * 3);
-
-}
-
-// ────────────────────────────────────────
-// DAILY REFRESH
-// ────────────────────────────────────────
-
-function setupDailyRefresh() {
-
-  setInterval(() => {
-
-    const now =
-      new Date();
-
-    if (
-      now.getHours() === 0 &&
-      now.getMinutes() === 0
-    ) {
-
-      window.ReminderSystem?._checkAll();
-
-    }
-
-  }, 60000);
-
-}
-
-// ────────────────────────────────────────
-// MEMORY CLEANUP
-// ────────────────────────────────────────
-
-function setupMemoryCleanup() {
-
-  setInterval(() => {
-
-    if (
-      window.app?.notifications?.length > 100
-    ) {
-
-      window.app.notifications =
-        window.app.notifications.slice(0, 80);
-
-    }
-
-  }, 1000 * 60 * 10);
-
-}
-
-// ────────────────────────────────────────
-// LIVE CLOCK
-// ────────────────────────────────────────
-
-window.getCurrentTime = function() {
-
-  return new Date()
-    .toLocaleTimeString([], {
-
-      hour:'2-digit',
-      minute:'2-digit'
-
-    });
-
-};
+}, 60000);
 
 // ────────────────────────────────────────
 // DAILY SUMMARY
@@ -599,16 +571,12 @@ window.getCurrentTime = function() {
 
 setInterval(() => {
 
-  window.LifeSyncAdvancedNotify?.dailySummary();
+  window
+    .LifeSyncAdvancedNotify
+    ?.dailySummary();
 
 }, 1000 * 60 * 60 * 24);
 
-// ────────────────────────────────────────
-// EXPORTS
-// ────────────────────────────────────────
-
-export {
-  Notifications,
-  ReminderSys,
-  Settings
-};
+console.log(
+  '🚀 App.js V2.2 Loaded'
+);
