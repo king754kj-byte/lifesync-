@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════
-//  LifeSync V2.1 — settings-manager.js
+//  LifeSync V2.2 — settings-manager.js
 //  Settings: toggles, profile, notification prefs, reset
 // ══════════════════════════════════════════
 
@@ -277,3 +277,11 @@ window.LifeSyncSettingsPlus = {
   }
 
 };
+
+document.addEventListener('click', (e) => {
+  const toggle = e.target.closest('.toggle-wrap');
+
+  if (!toggle) return;
+
+  e.stopPropagation();
+});
