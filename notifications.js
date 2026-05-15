@@ -1,256 +1,682 @@
 // ══════════════════════════════════════════
-//  LifeSync V2.1 — notifications.js
-//  Smart Notifications, Sounds & Vibration
+// LifeSync V2.2 — notifications.js
+// Smart Notifications, Sounds & Vibration
 // ══════════════════════════════════════════
 
 class LifeSyncNotificationManager {
+
   constructor() {
-    this.supported     = 'Notification' in window;
-    this.permission    = this.supported ? Notification.permission : 'denied';
-    this.audioCtx      = null;
-    this.soundEnabled  = true;
-    this.vibEnabled    = true;
+
+    this.supported  = 'Notification' in window;
+    this.permission = this.supported
+      ? Notification.permission
+      : 'denied';
+
+    this.audioCtx = null;
+
+    this.soundEnabled = true;
+    this.vibEnabled   = true;
+
+    this.cooldowns = {};
+
+    this.quietHours = {
+      start: 23,
+      end: 7
+    };
+
     this._init();
   }
 
-  // ── Init & Permission ────────────────────────────────────────────────────
-  _init() {
-    // Lazy-init AudioContext on first user gesture to comply with autoplay policies
-    const unlockAudio = () => {
-      if (!this.audioCtx) {
-        try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-        catch(e) {}
-      }
-      document.removeEventListener('touchstart', unlockAudio);
-      document.removeEventListener('click',      unlockAudio);
-    };
-    document.addEventListener('touchstart', unlockAudio, { once: true });
-    document.addEventListener('click',      unlockAudio, { once: true });
+  // ───────────────────────────────────────
+  // INIT
+  // ───────────────────────────────────────
 
-    // Restore settings from localStorage
+  _init() {
+
+    const unlockAudio = () => {
+
+      if (!this.audioCtx) {
+
+        try {
+
+          this.audioCtx =
+            new (
+              window.AudioContext ||
+              window.webkitAudioContext
+            )();
+
+        } catch(e) {}
+      }
+
+      document.removeEventListener(
+        'touchstart',
+        unlockAudio
+      );
+
+      document.removeEventListener(
+        'click',
+        unlockAudio
+      );
+    };
+
+    document.addEventListener(
+      'touchstart',
+      unlockAudio,
+      { once:true }
+    );
+
+    document.addEventListener(
+      'click',
+      unlockAudio,
+      { once:true }
+    );
+
     try {
-      const ns = JSON.parse(localStorage.getItem('ls_notif_settings') || '{}');
-      this.soundEnabled = ns.sound  !== false;
-      this.vibEnabled   = ns.vibrate !== false;
+
+      const saved = JSON.parse(
+        localStorage.getItem(
+          'ls_notif_settings'
+        ) || '{}'
+      );
+
+      this.soundEnabled =
+        saved.sound !== false;
+
+      this.vibEnabled =
+        saved.vibrate !== false;
+
     } catch(e) {}
+
+    if (
+      this.supported &&
+      this.permission === 'default'
+    ) {
+
+      setTimeout(() => {
+        this.requestPermission();
+      }, 2500);
+    }
   }
+
+  // ───────────────────────────────────────
+  // QUIET MODE
+  // ───────────────────────────────────────
+
+  isQuietTime() {
+
+    const hour = new Date().getHours();
+
+    return (
+      hour >= this.quietHours.start ||
+      hour < this.quietHours.end
+    );
+  }
+
+  canNotify(tag) {
+
+    const now = Date.now();
+
+    if (!this.cooldowns[tag]) {
+
+      this.cooldowns[tag] = now;
+
+      return true;
+    }
+
+    const diff =
+      now - this.cooldowns[tag];
+
+    if (diff > 1000 * 60 * 30) {
+
+      this.cooldowns[tag] = now;
+
+      return true;
+    }
+
+    return false;
+  }
+
+  // ───────────────────────────────────────
+  // PERMISSION
+  // ───────────────────────────────────────
 
   async requestPermission() {
-    if (!this.supported) return 'denied';
+
+    if (!this.supported)
+      return 'denied';
+
     try {
-      this.permission = await Notification.requestPermission();
+
+      this.permission =
+        await Notification.requestPermission();
+
       return this.permission;
-    } catch(e) { return 'denied'; }
+
+    } catch(e) {
+
+      return 'denied';
+    }
   }
 
-  // ── Sounds (Web Audio API — no external files needed) ───────────────────
+  // ───────────────────────────────────────
+  // AUDIO
+  // ───────────────────────────────────────
+
   _getAudioCtx() {
+
     if (!this.audioCtx) {
-      try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch(e) { return null; }
+
+      try {
+
+        this.audioCtx =
+          new (
+            window.AudioContext ||
+            window.webkitAudioContext
+          )();
+
+      } catch(e) {
+
+        return null;
+      }
     }
-    if (this.audioCtx.state === 'suspended') this.audioCtx.resume().catch(() => {});
+
+    if (
+      this.audioCtx.state === 'suspended'
+    ) {
+
+      this.audioCtx.resume()
+        .catch(() => {});
+    }
+
     return this.audioCtx;
   }
 
   playSound(type = 'default') {
-    if (!this.soundEnabled) return;
+
+    if (!this.soundEnabled)
+      return;
+
+    if (
+      localStorage.getItem(
+        'lifesync_quiet'
+      ) === 'true'
+    ) return;
+
     const ctx = this._getAudioCtx();
+
     if (!ctx) return;
 
     const sounds = {
-      default:  [{ freq:523, dur:0.12, type:'sine' }, { freq:659, dur:0.15, type:'sine', delay:0.1 }],
-      urgent:   [{ freq:880, dur:0.08, type:'sawtooth' }, { freq:880, dur:0.08, type:'sawtooth', delay:0.12 }, { freq:1046, dur:0.15, type:'sine', delay:0.28 }],
-      success:  [{ freq:523, dur:0.10, type:'sine' }, { freq:659, dur:0.10, type:'sine', delay:0.1 }, { freq:784, dur:0.18, type:'sine', delay:0.22 }],
-      snooze:   [{ freq:349, dur:0.15, type:'sine' }, { freq:294, dur:0.2, type:'sine', delay:0.18 }],
-      complete: [{ freq:784, dur:0.08, type:'triangle' }, { freq:1047, dur:0.08, type:'triangle', delay:0.1 }, { freq:1319, dur:0.18, type:'triangle', delay:0.22 }],
-      missed:   [{ freq:196, dur:0.25, type:'sawtooth' }, { freq:147, dur:0.25, type:'sawtooth', delay:0.3 }],
+
+      default: [
+        {
+          freq:523,
+          dur:0.12,
+          type:'sine'
+        },
+        {
+          freq:659,
+          dur:0.15,
+          type:'sine',
+          delay:0.1
+        }
+      ],
+
+      urgent: [
+        {
+          freq:880,
+          dur:0.08,
+          type:'sawtooth'
+        },
+        {
+          freq:1046,
+          dur:0.15,
+          type:'sine',
+          delay:0.18
+        }
+      ],
+
+      success: [
+        {
+          freq:523,
+          dur:0.10,
+          type:'triangle'
+        },
+        {
+          freq:784,
+          dur:0.18,
+          type:'triangle',
+          delay:0.14
+        }
+      ],
+
+      missed: [
+        {
+          freq:196,
+          dur:0.25,
+          type:'sawtooth'
+        },
+        {
+          freq:147,
+          dur:0.25,
+          type:'sawtooth',
+          delay:0.3
+        }
+      ],
+
+      snooze: [
+        {
+          freq:349,
+          dur:0.12,
+          type:'sine'
+        }
+      ]
     };
 
-    const seq = sounds[type] || sounds.default;
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.25, ctx.currentTime);
-    masterGain.connect(ctx.destination);
+    const seq =
+      sounds[type] ||
+      sounds.default;
 
-    seq.forEach(({ freq, dur, type: wt, delay = 0 }) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
+    const master =
+      ctx.createGain();
+
+    master.gain.setValueAtTime(
+      0.25,
+      ctx.currentTime
+    );
+
+    master.connect(ctx.destination);
+
+    seq.forEach(sound => {
+
+      const osc =
+        ctx.createOscillator();
+
+      const gain =
+        ctx.createGain();
+
       osc.connect(gain);
-      gain.connect(masterGain);
 
-      osc.type      = wt;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
-      gain.gain.setValueAtTime(0.6, ctx.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+      gain.connect(master);
 
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime  + delay + dur + 0.01);
+      osc.type =
+        sound.type;
+
+      osc.frequency.setValueAtTime(
+        sound.freq,
+        ctx.currentTime +
+        (sound.delay || 0)
+      );
+
+      gain.gain.setValueAtTime(
+        0.6,
+        ctx.currentTime +
+        (sound.delay || 0)
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime +
+        (sound.delay || 0) +
+        sound.dur
+      );
+
+      osc.start(
+        ctx.currentTime +
+        (sound.delay || 0)
+      );
+
+      osc.stop(
+        ctx.currentTime +
+        (sound.delay || 0) +
+        sound.dur +
+        0.01
+      );
     });
   }
 
-  // ── Vibration ─────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────
+  // VIBRATION
+  // ───────────────────────────────────────
+
   vibrate(pattern = [100]) {
-    if (!this.vibEnabled) return;
-    if (!('vibrate' in navigator)) return;
-    try { navigator.vibrate(pattern); } catch(e) {}
+
+    if (!this.vibEnabled)
+      return;
+
+    if (!('vibrate' in navigator))
+      return;
+
+    try {
+
+      navigator.vibrate(pattern);
+
+    } catch(e) {}
   }
 
-  vibrateUrgent()  { this.vibrate([100, 50, 100, 50, 200]); }
-  vibrateSuccess() { this.vibrate([50, 30, 80]); }
-  vibrateMissed()  { this.vibrate([200, 100, 200]); }
+  vibrateUrgent() {
 
-  // ── Browser Notifications ────────────────────────────────────────────────
+    this.vibrate([
+      100,
+      50,
+      100,
+      50,
+      200
+    ]);
+  }
+
+  vibrateMissed() {
+
+    this.vibrate([
+      200,
+      100,
+      200
+    ]);
+  }
+
+  // ───────────────────────────────────────
+  // SEND NOTIFICATION
+  // ───────────────────────────────────────
+
   send(title, body, opts = {}) {
+
     const {
-      icon    = '🔔',
-      tag     = 'lifesync-notif',
-      urgency = 'normal',  // 'urgent' | 'normal' | 'low'
-      sound   = true,
-      vibrate = true,
-      onLog   = null,
+      tag       = title,
+      urgency   = 'normal',
+      sound     = true,
+      vibrate   = true,
+      silent    = false
     } = opts;
 
-    // In-app notification log
-    if (typeof window !== 'undefined' && window.app) {
-      if (!window.app.notifications) window.app.notifications = [];
-      const entry = {
-        id:      (window.nextId || (() => Date.now()))(),
+    if (
+      this.isQuietTime() &&
+      urgency !== 'urgent'
+    ) return;
+
+    if (!this.canNotify(tag))
+      return;
+
+    // save notification log
+
+    if (window.app) {
+
+      if (!window.app.notifications)
+        window.app.notifications = [];
+
+      window.app.notifications.unshift({
+
+        id: Date.now(),
+
         title,
+
         body,
-        time:    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+
         urgency,
-        read:    false,
+
+        read:false,
+
+        time:new Date()
+          .toLocaleTimeString([], {
+            hour:'2-digit',
+            minute:'2-digit'
+          })
+      });
+
+      if (
+        window.app.notifications.length > 100
+      ) {
+
+        window.app.notifications.pop();
+      }
+
+      window.saveData?.();
+
+      window.updateNotifBadge?.();
+    }
+
+    // sound
+
+    if (sound && !silent) {
+
+      const soundMap = {
+
+        urgent:'urgent',
+
+        normal:'default',
+
+        low:'snooze'
       };
-      window.app.notifications.unshift(entry);
-      if (window.app.notifications.length > 80) window.app.notifications.pop();
-      if (typeof window.saveData === 'function') window.saveData();
-      if (typeof window.updateNotifBadge === 'function') window.updateNotifBadge();
-      if (onLog) onLog(entry);
+
+      this.playSound(
+        soundMap[urgency] ||
+        'default'
+      );
     }
 
-    // Sound & vibration based on urgency
-    if (sound) {
-      const soundMap = { urgent: 'urgent', normal: 'default', low: 'snooze' };
-      this.playSound(soundMap[urgency] || 'default');
-    }
+    // vibration
+
     if (vibrate) {
-      if      (urgency === 'urgent') this.vibrateUrgent();
-      else if (urgency === 'normal') this.vibrate([80]);
+
+      if (urgency === 'urgent') {
+
+        this.vibrateUrgent();
+
+      } else {
+
+        this.vibrate([80]);
+      }
     }
 
-    // System notification
-    if (this.supported && this.permission === 'granted') {
+    // system notification
+
+    if (
+      this.supported &&
+      this.permission === 'granted'
+    ) {
+
       try {
-        new Notification('LifeSync: ' + title, {
-          body,
-          tag,
-          icon: './icon-192.png',
-          badge: './icon-192.png',
-          vibrate: vibrate ? [100, 50, 100] : undefined,
-          silent: !sound,
-        });
-      } catch(e) { console.warn('Notification send:', e.message); }
+
+        new Notification(
+          'LifeSync • ' + title,
+          {
+            body,
+
+            icon:'./icon-192.png',
+
+            badge:'./icon-192.png',
+
+            tag,
+
+            silent: !sound,
+
+            vibrate:
+              urgency === 'urgent'
+                ? [100,50,100]
+                : [60]
+          }
+        );
+
+      } catch(e) {
+
+        console.warn(
+          'Notification error:',
+          e.message
+        );
+      }
     }
   }
 
-  // ── FCM incoming message handler ──────────────────────────────────────────
-  handleFCMMessage(payload) {
-    const { title = 'LifeSync', body = '' } = payload.notification || {};
-    this.send(title, body, { urgency: 'urgent' });
-  }
+  // ───────────────────────────────────────
+  // SETTINGS
+  // ───────────────────────────────────────
 
-  // ── Settings persistence ─────────────────────────────────────────────────
   saveSettings() {
-    localStorage.setItem('ls_notif_settings', JSON.stringify({
-      sound:   this.soundEnabled,
-      vibrate: this.vibEnabled,
-    }));
+
+    localStorage.setItem(
+      'ls_notif_settings',
+
+      JSON.stringify({
+
+        sound:this.soundEnabled,
+
+        vibrate:this.vibEnabled
+      })
+    );
   }
 
   toggleSound(on) {
+
     this.soundEnabled = on;
+
     this.saveSettings();
-    this.playSound(on ? 'success' : null);
+
+    if (on) {
+
+      this.playSound('success');
+    }
   }
 
   toggleVibrate(on) {
+
     this.vibEnabled = on;
+
     this.saveSettings();
-    if (on) this.vibrate([80]);
+
+    if (on) {
+
+      this.vibrate([80]);
+    }
   }
 }
 
-// ── Export singleton ─────────────────────────────────────────────────────────
-window.LifeSyncNotifications = new LifeSyncNotificationManager();
-export default window.LifeSyncNotifications;
+// ══════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════
+
+window.LifeSyncNotifications =
+  new LifeSyncNotificationManager();
+
+export default
+  window.LifeSyncNotifications;
+
+// ══════════════════════════════════════════
+// ADVANCED SMART NOTIFICATIONS
+// ══════════════════════════════════════════
 
 window.LifeSyncAdvancedNotify = {
+
   smartReminder(reminder) {
+
     if (!reminder) return;
 
-    const days = reminder.daysLeft || 0;
+    const days =
+      reminder.daysLeft ?? 0;
 
     let body = '';
 
+    let urgency = 'normal';
+
     if (days < 0) {
-      body = `❌ Missed: ${reminder.title}`;
-      window.LifeSyncNotifications?.playSound('missed');
-      window.LifeSyncNotifications?.vibrate([200,100,200]);
+
+      body =
+        `❌ Missed: ${reminder.title}`;
+
+      urgency = 'urgent';
+
+      window.LifeSyncNotifications
+        ?.playSound('missed');
+
+      window.LifeSyncNotifications
+        ?.vibrateMissed();
     }
 
     else if (days === 0) {
-      body = `⚡ Today: ${reminder.title}`;
-      window.LifeSyncNotifications?.playSound('urgent');
-      window.LifeSyncNotifications?.vibrate([300,100,300]);
+
+      body =
+        `⚡ Today: ${reminder.title}`;
+
+      urgency = 'urgent';
+
+      window.LifeSyncNotifications
+        ?.playSound('urgent');
+
+      window.LifeSyncNotifications
+        ?.vibrateUrgent();
     }
 
     else if (days === 1) {
-      body = `⏰ Tomorrow: ${reminder.title}`;
-      window.LifeSyncNotifications?.playSound('default');
+
+      body =
+        `⏰ Tomorrow: ${reminder.title}`;
+
+      window.LifeSyncNotifications
+        ?.playSound('default');
     }
 
     else {
-      body = `📅 ${days} days left for ${reminder.title}`;
+
+      body =
+        `📅 ${days} days left`;
     }
 
-    window.LifeSyncNotifications?.send(
-      reminder.title,
-      body,
-      {
-        urgency: days <= 0 ? 'urgent' : 'normal',
-        tag: 'smart-' + reminder.id
-      }
-    );
+    window.LifeSyncNotifications
+      ?.send(
+        reminder.title,
+        body,
+        {
+          urgency,
+
+          tag:
+            'smart-' +
+            reminder.id
+        }
+      );
   },
 
   habitReminder(habit) {
+
     if (!habit) return;
 
-    window.LifeSyncNotifications?.send(
-      '🔥 Habit Reminder',
-      `Complete your habit: ${habit.title}`,
-      {
-        urgency: 'normal',
-        tag: 'habit-' + habit.id
-      }
-    );
+    window.LifeSyncNotifications
+      ?.send(
+        '🔥 Habit Reminder',
 
-    window.LifeSyncNotifications?.playSound('default');
+        `Complete: ${habit.title}`,
+
+        {
+          urgency:'normal',
+
+          tag:
+            'habit-' +
+            habit.id
+        }
+      );
   },
 
   dailySummary() {
-    const reminders = window.app?.reminders || [];
-    const habits = window.app?.habits || [];
 
-    const pending = reminders.filter(r => r.status !== 'completed').length;
+    const reminders =
+      window.app?.reminders || [];
 
-    window.LifeSyncNotifications?.send(
-      '📊 Daily Summary',
-      `${pending} reminders pending • ${habits.length} habits active`,
-      {
-        urgency: 'normal',
-        tag: 'daily-summary'
-      }
-    );
+    const habits =
+      window.app?.habits || [];
+
+    const pending =
+      reminders.filter(r =>
+        r.status !== 'completed'
+      ).length;
+
+    window.LifeSyncNotifications
+      ?.send(
+        '📊 Daily Summary',
+
+        `${pending} reminders • ${habits.length} habits active`,
+
+        {
+          urgency:'low',
+
+          tag:'daily-summary'
+        }
+      );
   }
 };
