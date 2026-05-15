@@ -206,3 +206,74 @@ window.toggleSetting   = (key) => window.SettingsManager.toggle(key);
 window.resetData       = () => window.SettingsManager.resetData();
 
 export default window.SettingsManager;
+
+window.toggleSetting = function(key) {
+  Settings.toggle(key);
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  Settings.render();
+});
+
+// ═══════════════════════════════════════
+// LifeSync V2.2 Advanced Settings
+// ═══════════════════════════════════════
+
+window.LifeSyncSettingsPlus = {
+
+  enableAMOLED() {
+    document.body.classList.toggle('amoled-mode');
+    localStorage.setItem(
+      'lifesync_amoled',
+      document.body.classList.contains('amoled-mode')
+    );
+  },
+
+  toggleQuietMode() {
+    const enabled = localStorage.getItem('lifesync_quiet') === 'true';
+
+    localStorage.setItem(
+      'lifesync_quiet',
+      (!enabled).toString()
+    );
+
+    window.showToast?.(
+      !enabled
+        ? '🔕 Quiet Mode Enabled'
+        : '🔔 Quiet Mode Disabled'
+    );
+  },
+
+  exportBackup() {
+    const data = JSON.stringify(window.app);
+
+    const blob = new Blob([data], {
+      type: 'application/json'
+    });
+
+    const a = document.createElement('a');
+
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lifesync-backup.json';
+    a.click();
+
+    window.showToast?.('💾 Backup Exported');
+  },
+
+  clearCompleted() {
+    if (!window.app.completedReminders) return;
+
+    window.app.completedReminders = [];
+
+    window.saveData?.();
+
+    window.showToast?.('🗑 Completed reminders cleared');
+  },
+
+  appInfo() {
+    window.showToast?.(
+      'LifeSync V2.2 • Developed by Kr.P'
+    );
+  }
+
+};
