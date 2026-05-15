@@ -183,3 +183,74 @@ class LifeSyncNotificationManager {
 // ── Export singleton ─────────────────────────────────────────────────────────
 window.LifeSyncNotifications = new LifeSyncNotificationManager();
 export default window.LifeSyncNotifications;
+
+window.LifeSyncAdvancedNotify = {
+  smartReminder(reminder) {
+    if (!reminder) return;
+
+    const days = reminder.daysLeft || 0;
+
+    let body = '';
+
+    if (days < 0) {
+      body = `❌ Missed: ${reminder.title}`;
+      window.LifeSyncNotifications?.playSound('missed');
+      window.LifeSyncNotifications?.vibrate([200,100,200]);
+    }
+
+    else if (days === 0) {
+      body = `⚡ Today: ${reminder.title}`;
+      window.LifeSyncNotifications?.playSound('urgent');
+      window.LifeSyncNotifications?.vibrate([300,100,300]);
+    }
+
+    else if (days === 1) {
+      body = `⏰ Tomorrow: ${reminder.title}`;
+      window.LifeSyncNotifications?.playSound('default');
+    }
+
+    else {
+      body = `📅 ${days} days left for ${reminder.title}`;
+    }
+
+    window.LifeSyncNotifications?.send(
+      reminder.title,
+      body,
+      {
+        urgency: days <= 0 ? 'urgent' : 'normal',
+        tag: 'smart-' + reminder.id
+      }
+    );
+  },
+
+  habitReminder(habit) {
+    if (!habit) return;
+
+    window.LifeSyncNotifications?.send(
+      '🔥 Habit Reminder',
+      `Complete your habit: ${habit.title}`,
+      {
+        urgency: 'normal',
+        tag: 'habit-' + habit.id
+      }
+    );
+
+    window.LifeSyncNotifications?.playSound('default');
+  },
+
+  dailySummary() {
+    const reminders = window.app?.reminders || [];
+    const habits = window.app?.habits || [];
+
+    const pending = reminders.filter(r => r.status !== 'completed').length;
+
+    window.LifeSyncNotifications?.send(
+      '📊 Daily Summary',
+      `${pending} reminders pending • ${habits.length} habits active`,
+      {
+        urgency: 'normal',
+        tag: 'daily-summary'
+      }
+    );
+  }
+};
