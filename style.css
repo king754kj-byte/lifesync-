@@ -1,285 +1,632 @@
-/* ═══════════════════════════════════════
-   LifeSync V2.2 Ultra UI Upgrade
-══════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   LifeSync V2.2 — style.css
+   FULL UI SYSTEM
+   Replace FULL old style.css
+══════════════════════════════════════════ */
 
-/* FIX POINTER EVENTS */
-.card,
-.glass,
-.overlay {
-  pointer-events: auto !important;
+/* ────────────────────────────────────────
+   ROOT
+──────────────────────────────────────── */
+
+:root{
+
+  --blue:#00d4ff;
+  --purple:#b44fff;
+  --green:#00e676;
+  --red:#ff2d78;
+  --bg:#050508;
+  --card:rgba(255,255,255,0.05);
+
 }
 
-/* ULTRA AMOLED */
-body.amoled-mode {
-  background: #000 !important;
+/* ────────────────────────────────────────
+   BODY
+──────────────────────────────────────── */
+
+body{
+
+  background:#000;
+  color:#fff;
+
+  font-family:'Syne',sans-serif;
+
+  -webkit-tap-highlight-color:
+  transparent;
+
 }
 
-/* SMOOTH APP */
-html {
-  scroll-behavior: smooth;
-}
+/* ────────────────────────────────────────
+   CARD
+──────────────────────────────────────── */
 
-body {
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
-}
+.card{
 
-/* PREMIUM CARD EFFECT */
-.card {
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(18px);
+  background:rgba(255,255,255,0.04);
+
+  border:1px solid
+  rgba(255,255,255,0.06);
+
+  border-radius:22px;
+
+  padding:16px;
+
+  backdrop-filter:blur(20px);
+
   transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+  transform .2s,
+  box-shadow .25s,
+  border-color .25s;
+
+  position:relative;
+
+  overflow:hidden;
+
 }
 
-.card:active {
-  transform: scale(0.985);
+.card:active{
+
+  transform:scale(.98);
+
 }
 
-.card::before {
-  content: '';
+/* ────────────────────────────────────────
+   REMINDER CARD
+──────────────────────────────────────── */
 
-  position: absolute;
-  inset: 0;
+.remind-card{
+
+  display:flex;
+
+  align-items:flex-start;
+
+  gap:14px;
+
+}
+
+/* ────────────────────────────────────────
+   ICON
+──────────────────────────────────────── */
+
+.remind-icon{
+
+  width:54px;
+  height:54px;
+
+  border-radius:18px;
+
+  display:flex;
+
+  align-items:center;
+  justify-content:center;
+
+  font-size:24px;
+
+  flex-shrink:0;
+
+}
+
+/* ────────────────────────────────────────
+   DAYS LABEL
+──────────────────────────────────────── */
+
+.remind-days{
+
+  font-size:18px;
+
+  font-weight:900;
+
+  letter-spacing:-0.5px;
+
+}
+
+.remind-dayslabel{
+
+  font-size:10px;
+
+  opacity:.7;
+
+}
+
+/* ────────────────────────────────────────
+   STATUS BADGES
+──────────────────────────────────────── */
+
+.remind-status-badge{
+
+  display:inline-flex;
+
+  align-items:center;
+
+  padding:4px 10px;
+
+  border-radius:99px;
+
+  font-size:10px;
+
+  font-weight:800;
+
+  letter-spacing:0.5px;
+
+}
+
+.remind-status-completed{
 
   background:
-    linear-gradient(
-      120deg,
-      transparent,
-      rgba(255,255,255,0.04),
-      transparent
-    );
-
-  transform: translateX(-100%);
-  transition: 0.6s;
-
-  pointer-events: none;
-}
-
-.card:hover::before {
-  transform: translateX(100%);
-}
-
-/* REMINDER CARD GLOW */
-.remind-card {
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease;
-}
-
-.remind-card:hover {
-  transform: translateY(-2px);
-
-  box-shadow:
-    0 0 20px rgba(0,212,255,0.15),
-    0 0 40px rgba(180,79,255,0.08);
-}
-
-/* LIVE URGENT PULSE */
-@keyframes ultraPulse {
-
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.08);
-    opacity: 0.7;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-}
-
-.urgent-live {
-  animation: ultraPulse 1.3s infinite;
-}
-
-/* BETTER TOGGLE */
-.toggle-wrap {
-  transition:
-    background 0.25s ease,
-    box-shadow 0.25s ease,
-    transform 0.2s ease;
-}
-
-.toggle-wrap:active {
-  transform: scale(0.92);
-}
-
-.toggle-thumb {
-  transition:
-    left 0.25s cubic-bezier(0.34,1.56,0.64,1),
-    background 0.25s ease;
-}
-
-/* NEON BUTTONS */
-button,
-.remind-action-btn {
-
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease;
-
-}
-
-button:hover,
-.remind-action-btn:hover {
-
-  box-shadow:
-    0 0 12px rgba(0,212,255,0.35);
-
-}
-
-button:active,
-.remind-action-btn:active {
-
-  transform: scale(0.92);
-
-}
-
-/* GLASS NAVBAR */
-.bottom-nav,
-.navbar {
-
-  backdrop-filter: blur(24px);
-
-  background:
-    rgba(10,10,18,0.55);
+  rgba(0,230,118,.12);
 
   border:
-    1px solid rgba(255,255,255,0.08);
+  1px solid rgba(0,230,118,.35);
+
+  color:var(--green);
 
 }
 
-/* SETTINGS PREMIUM */
-.settings-row {
-
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease;
-
-  border-radius: 14px;
-  padding-inline: 8px;
-
-}
-
-.settings-row:hover {
+.remind-status-missed{
 
   background:
-    rgba(255,255,255,0.03);
-
-}
-
-.settings-row:active {
-
-  transform: scale(0.98);
-
-}
-
-/* SCROLLBAR */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-
-  background:
-    linear-gradient(
-      #00d4ff,
-      #b44fff
-    );
-
-  border-radius: 99px;
-}
-
-/* FLOATING BACKGROUND GLOW */
-body::after {
-
-  content: '';
-
-  position: fixed;
-
-  width: 280px;
-  height: 280px;
-
-  background:
-    radial-gradient(
-      rgba(0,212,255,0.12),
-      transparent 70%
-    );
-
-  bottom: -100px;
-  left: -100px;
-
-  z-index: -1;
-
-  pointer-events: none;
-}
-
-/* OFFLINE INDICATOR */
-.offline-live {
-
-  position: fixed;
-
-  top: 16px;
-  right: 16px;
-
-  padding: 6px 12px;
-
-  border-radius: 99px;
-
-  background:
-    rgba(255,45,120,0.14);
+  rgba(255,45,120,.12);
 
   border:
-    1px solid rgba(255,45,120,0.4);
+  1px solid rgba(255,45,120,.35);
 
-  color: #ff2d78;
-
-  font-size: 11px;
-  font-weight: 700;
-
-  z-index: 99999;
-
-  backdrop-filter: blur(18px);
+  color:var(--red);
 
 }
 
-/* LOADING SHIMMER */
-@keyframes shimmer {
+/* ────────────────────────────────────────
+   CARD STATES
+──────────────────────────────────────── */
 
-  0% {
-    background-position: -300px 0;
-  }
+.remind-card-completed{
 
-  100% {
-    background-position: 300px 0;
-  }
+  opacity:.6;
 
 }
 
-.loading-shimmer {
+.remind-card-missed{
+
+  border-color:
+  rgba(255,45,120,.35)
+  !important;
+
+  box-shadow:
+  0 0 18px
+  rgba(255,45,120,.15)
+  !important;
+
+}
+
+/* ────────────────────────────────────────
+   BUTTONS
+──────────────────────────────────────── */
+
+.remind-action-btn{
+
+  padding:10px 14px;
+
+  border:none;
+
+  border-radius:14px;
+
+  font-size:11px;
+
+  font-weight:800;
+
+  font-family:inherit;
+
+  cursor:pointer;
+
+  transition:
+  transform .15s,
+  opacity .15s,
+  box-shadow .2s;
+
+  color:#fff;
+
+}
+
+.remind-action-btn:active{
+
+  transform:scale(.92);
+
+}
+
+.btn-complete{
 
   background:
-    linear-gradient(
-      90deg,
-      rgba(255,255,255,0.04) 25%,
-      rgba(255,255,255,0.08) 50%,
-      rgba(255,255,255,0.04) 75%
-    );
+  linear-gradient(
+    135deg,
+    rgba(0,230,118,.18),
+    rgba(0,230,118,.1)
+  );
 
-  background-size: 300px 100%;
+  border:
+  1px solid rgba(0,230,118,.35);
+
+  color:var(--green);
+
+}
+
+.btn-complete:hover{
+
+  box-shadow:
+  0 0 16px
+  rgba(0,230,118,.35);
+
+}
+
+.btn-snooze{
+
+  background:
+  linear-gradient(
+    135deg,
+    rgba(0,212,255,.18),
+    rgba(0,212,255,.08)
+  );
+
+  border:
+  1px solid rgba(0,212,255,.35);
+
+  color:var(--blue);
+
+}
+
+.btn-delete{
+
+  background:
+  linear-gradient(
+    135deg,
+    rgba(255,45,120,.18),
+    rgba(255,45,120,.08)
+  );
+
+  border:
+  1px solid rgba(255,45,120,.35);
+
+  color:var(--red);
+
+}
+
+.btn-edit{
+
+  background:
+  linear-gradient(
+    135deg,
+    rgba(180,79,255,.18),
+    rgba(180,79,255,.08)
+  );
+
+  border:
+  1px solid rgba(180,79,255,.35);
+
+  color:var(--purple);
+
+}
+
+/* ────────────────────────────────────────
+   SETTINGS
+──────────────────────────────────────── */
+
+.settings-row{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:14px;
+
+  padding:14px 0;
+
+  border-bottom:
+  1px solid rgba(255,255,255,.05);
+
+}
+
+.settings-icon{
+
+  width:28px;
+
+  text-align:center;
+
+  font-size:18px;
+
+}
+
+.settings-label{
+
+  flex:1;
+
+  font-size:13px;
+
+  font-weight:700;
+
+  color:#ddd;
+
+}
+
+/* ────────────────────────────────────────
+   TOGGLE
+──────────────────────────────────────── */
+
+.toggle-wrap{
+
+  width:48px;
+
+  height:28px;
+
+  border-radius:99px;
+
+  position:relative;
+
+  cursor:pointer;
+
+  transition:
+  background .25s,
+  box-shadow .25s,
+  transform .15s;
+
+  flex-shrink:0;
+
+}
+
+.toggle-wrap:active{
+
+  transform:scale(.92);
+
+}
+
+.toggle-thumb{
+
+  position:absolute;
+
+  top:4px;
+
+  width:20px;
+  height:20px;
+
+  border-radius:50%;
+
+  background:#fff;
+
+  transition:
+  all .25s
+  cubic-bezier(
+    .34,
+    1.56,
+    .64,
+    1
+  );
+
+  box-shadow:
+  0 2px 8px
+  rgba(0,0,0,.45);
+
+}
+
+/* ────────────────────────────────────────
+   VERSION
+──────────────────────────────────────── */
+
+#settings-version{
+
+  display:inline-flex;
+
+  align-items:center;
+
+  gap:6px;
+
+  padding:6px 12px;
+
+  border-radius:99px;
+
+  background:
+  rgba(0,212,255,.08);
+
+  border:
+  1px solid rgba(0,212,255,.25);
+
+  color:var(--blue);
+
+  font-size:11px;
+
+  font-weight:800;
+
+  letter-spacing:.5px;
+
+}
+
+/* ────────────────────────────────────────
+   OFFLINE MODE
+──────────────────────────────────────── */
+
+.offline-mode::before{
+
+  content:'OFFLINE MODE';
+
+  position:fixed;
+
+  top:14px;
+  right:14px;
+
+  z-index:99999;
+
+  background:
+  rgba(255,152,0,.15);
+
+  border:
+  1px solid rgba(255,152,0,.35);
+
+  color:#ff9800;
+
+  padding:7px 14px;
+
+  border-radius:99px;
+
+  font-size:11px;
+
+  font-weight:800;
+
+  backdrop-filter:blur(14px);
+
+}
+
+/* ────────────────────────────────────────
+   URGENT PULSE
+──────────────────────────────────────── */
+
+@keyframes urgentPulse{
+
+  0%,100%{
+
+    opacity:1;
+    transform:scale(1);
+
+  }
+
+  50%{
+
+    opacity:.45;
+    transform:scale(1.2);
+
+  }
+
+}
+
+.urgent-pulse{
 
   animation:
-    shimmer 1.5s infinite linear;
+  urgentPulse
+  1.2s ease-in-out infinite;
 
 }
+
+/* ────────────────────────────────────────
+   NOTIFICATION STATS
+──────────────────────────────────────── */
+
+#notif-stats-row{
+
+  display:flex;
+
+  gap:10px;
+
+  margin-bottom:16px;
+
+}
+
+.notif-stat-card{
+
+  flex:1;
+
+  background:
+  rgba(255,255,255,.04);
+
+  border:
+  1px solid rgba(255,255,255,.06);
+
+  border-radius:18px;
+
+  padding:14px;
+
+  text-align:center;
+
+}
+
+.notif-stat-card div{
+
+  font-size:24px;
+
+  font-weight:900;
+
+  margin-bottom:4px;
+
+}
+
+.notif-stat-card span{
+
+  font-size:10px;
+
+  color:#777;
+
+}
+
+/* ────────────────────────────────────────
+   SCROLLBAR
+──────────────────────────────────────── */
+
+::-webkit-scrollbar{
+
+  width:5px;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+  background:
+  linear-gradient(
+    180deg,
+    var(--blue),
+    var(--purple)
+  );
+
+  border-radius:99px;
+
+}
+
+/* ────────────────────────────────────────
+   RESPONSIVE
+──────────────────────────────────────── */
+
+@media(max-width:420px){
+
+  .remind-action-btn{
+
+    width:100%;
+
+  }
+
+}
+
+/* ────────────────────────────────────────
+   AMOLED MODE
+──────────────────────────────────────── */
+
+body.amoled-mode{
+
+  background:#000;
+
+}
+
+body.amoled-mode .card{
+
+  background:
+  rgba(255,255,255,.03);
+
+  border:
+  1px solid rgba(255,255,255,.04);
+
+}
+
+/* ────────────────────────────────────────
+   POINTER FIX
+──────────────────────────────────────── */
+
+button,
+.toggle-wrap,
+.toggle-thumb{
+
+  pointer-events:auto !important;
+
+  touch-action:manipulation;
+
+  position:relative;
+
+  z-index:9999;
+
+}
+
+/* ────────────────────────────────────────
+   END
+──────────────────────────────────────── */
+
+console.log;
