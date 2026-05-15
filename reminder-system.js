@@ -1,351 +1,375 @@
-// ══════════════════════════════════════════
-//  LifeSync V2.2 — reminder-system.js
-//  Reminder Engine: Complete, Missed, Snooze, Repeat, Tick
-// ══════════════════════════════════════════
-function calculateDaysLeft(targetDate) {
-  const today = new Date();
-  const target = new Date(targetDate);
+// ═══════════════════════════════════════════════════════
+// LifeSync V2.2 — REAL Reminder System
+// Real countdown • Real calendar • Editable • Dynamic
+// Replace FULL old reminder-system.js with this
+// ═══════════════════════════════════════════════════════
 
-  today.setHours(0,0,0,0);
+function getTodayDate() {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function calculateDaysLeft(targetDate) {
+  const today = getTodayDate();
+
+  const target = new Date(targetDate);
   target.setHours(0,0,0,0);
 
-  const diff = target - today;
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor(
+    (target - today) / (1000 * 60 * 60 * 24)
+  );
 
-  if (days < 0) return 'Missed';
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
+  if (diffDays < 0) return 'Missed';
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
 
-  return `${days} days left`;
+  return `${diffDays} days left`;
 }
+
 class ReminderSystem {
+
   constructor() {
-    this.CHECK_INTERVAL_MS = 60 * 1000; // check every minute
-    this._timer            = null;
-    this._missedThreshold  = 0; // days <= 0 = missed
+    this.CHECK_INTERVAL_MS = 30000;
+    this._timer = null;
   }
 
-  // ── Boot ──────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════
+  // START ENGINE
+  // ═══════════════════════════════
   start() {
     this._checkAll();
-    this._timer = setInterval(() => this._checkAll(), this.CHECK_INTERVAL_MS);
-    console.log('✓ ReminderSystem started');
+
+    this._timer = setInterval(() => {
+      this._checkAll();
+    }, this.CHECK_INTERVAL_MS);
+
+    console.log('✅ LifeSync Reminder Engine Started');
   }
 
   stop() {
     clearInterval(this._timer);
   }
 
-  // ── Core check loop ───────────────────────────────────────────────────────
+  // ═══════════════════════════════
+  // MAIN REAL-TIME CHECK
+  // ═══════════════════════════════
   _checkAll() {
+
     if (!window.app) return;
+
     const reminders = window.app.reminders || [];
-    const now = new Date();
 
     reminders.forEach(r => {
-      if (r.status === 'completed') return;
 
-      // Auto-detect missed: days <= 0 and not already marked
-      const today = new Date();
-const target = new Date(r.date);
+      if (!r.date) return;
 
-today.setHours(0,0,0,0);
-target.setHours(0,0,0,0);
+      const today = getTodayDate();
 
-const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+      const target = new Date(r.date);
+      target.setHours(0,0,0,0);
 
-r.daysLeft = diffDays;
-r.label = calculateDaysLeft(r.date);
+      const diffDays = Math.floor(
+        (target - today) / (1000 * 60 * 60 * 24)
+      );
 
-window.LifeSyncAdvancedNotify?.smartReminder(r);
+      // REAL dynamic values
+      r.daysLeft = diffDays;
+      r.label = calculateDaysLeft(r.date);
 
-if (diffDays < 0) {
-  this._markMissed(r);
-}
-      // Upcoming alerts: 1 day or less
-      if (r.days === 1 && !r._notifiedTomorrow) {
-        r._notifiedTomorrow = true;
-        window.LifeSyncNotifications?.send(r.title, '⏰ Due TOMORROW!', { urgency: 'normal', tag: 'remind-' + r.id });
+      // AUTO STATUS
+      if (diffDays < 0) {
+        r.status = 'missed';
       }
-      if (r.days === 0 && !r._notifiedToday) {
-        r._notifiedToday = true;
-        window.LifeSyncNotifications?.send(r.title, '⚡ Due TODAY!', { urgency: 'urgent', tag: 'remind-today-' + r.id });
-        window.LifeSyncNotifications?.vibrateUrgent();
+
+      else if (r.status !== 'completed') {
+        r.status = 'active';
       }
+
+      // TODAY ALERT
+      if (
+        diffDays === 0 &&
+        !r._todayAlert
+      ) {
+
+        r._todayAlert = true;
+
+        window.LifeSyncNotifications?.send(
+          r.title,
+          '⚡ Reminder is TODAY',
+          {
+            urgency: 'urgent'
+          }
+        );
+      }
+
+      // TOMORROW ALERT
+      if (
+        diffDays === 1 &&
+        !r._tomorrowAlert
+      ) {
+
+        r._tomorrowAlert = true;
+
+        window.LifeSyncNotifications?.send(
+          r.title,
+          '⏰ Reminder is TOMORROW',
+          {
+            urgency: 'normal'
+          }
+        );
+      }
+
+      // MISSED ALERT
+      if (
+        diffDays < 0 &&
+        !r._missedAlert
+      ) {
+
+        r._missedAlert = true;
+
+        window.LifeSyncNotifications?.send(
+          r.title,
+          '❌ Reminder MISSED',
+          {
+            urgency: 'urgent'
+          }
+        );
+      }
+
     });
 
-    if (typeof window.saveData === 'function') window.saveData();
-    if (typeof window.updateNotifBadge === 'function') window.updateNotifBadge();
+    window.saveData?.();
+
+    if (window.renderReminders)
+      window.renderReminders();
+
+    if (window.renderCalendar)
+      window.renderCalendar();
   }
 
-  // ── Mark completed ─────────────────────────────────────────────────────────
+  // ═══════════════════════════════
+  // COMPLETE
+  // ═══════════════════════════════
   complete(id) {
+
     const r = this._find(id);
+
     if (!r) return;
 
-    if (r.status === 'completed') {
-      window.showToast?.('Already completed ✓');
-      return;
-    }
+    r.status = 'completed';
 
-    r.status       = 'completed';
-    r.completedAt  = new Date().toISOString();
-    r.completedDay = new Date().toDateString();
-    r.urgent       = false;
-
-    // Move to completed log
-    if (!window.app.completedReminders) window.app.completedReminders = [];
-    window.app.completedReminders.unshift({ ...r });
-    if (window.app.completedReminders.length > 100) window.app.completedReminders.pop();
-
-    // Play success sound & vibrate
-    window.LifeSyncNotifications?.playSound('complete');
-    window.LifeSyncNotifications?.vibrateSuccess();
-
-    window.saveData?.();
-    window.showToast?.(`✅ "${r.title}" marked complete!`);
-
-    // Fire UI tick animation
-    this._tickAnimation(id);
-
-    // Handle repeat: if reminder has an interval, schedule next occurrence
-    if (r.interval && r.interval > 0) {
-      this._scheduleRepeat(r);
-    }
-
-    this._renderAll();
-  }
-
-  // ── Mark missed ────────────────────────────────────────────────────────────
-  _markMissed(r) {
-    r.status    = 'missed';
-    r.missedAt  = new Date().toISOString();
-
-    if (!window.app.missedReminders) window.app.missedReminders = [];
-    window.app.missedReminders.unshift({ ...r });
-    if (window.app.missedReminders.length > 50) window.app.missedReminders.pop();
+    r.completedAt = new Date().toISOString();
 
     window.LifeSyncNotifications?.send(
-      r.title, '❌ Missed reminder — tap to reschedule',
-      { urgency: 'urgent', sound: true, vibrate: true, tag: 'missed-' + r.id }
+      '✅ Completed',
+      r.title,
+      {
+        urgency: 'low'
+      }
     );
-    window.LifeSyncNotifications?.vibrateMissed();
-  }
-
-  // ── Snooze ─────────────────────────────────────────────────────────────────
-  snooze(id, days = 1) {
-    const r = this._find(id);
-    if (!r) return;
-
-    r.days       += days;
-    r.status      = 'active';
-    r.urgent      = r.days <= 3;
-    r._notifiedTomorrow = false;
-    r._notifiedToday    = false;
-
-    if (!window.app.snoozeLog) window.app.snoozeLog = [];
-    window.app.snoozeLog.push({
-      id:      r.id,
-      title:   r.title,
-      snoozed: new Date().toISOString(),
-      days,
-    });
-
-    window.LifeSyncNotifications?.playSound('snooze');
-    window.LifeSyncNotifications?.vibrate([60, 40, 60]);
 
     window.saveData?.();
-    window.showToast?.(`😴 Snoozed ${days} day${days > 1 ? 's' : ''}!`);
-    this._renderAll();
+
+    this._refresh();
   }
 
-  // ── Repeat scheduling ───────────────────────────────────────────────────────
-  _scheduleRepeat(r) {
-    const newReminder = {
-      ...r,
-      id:      (window.nextId || (() => Date.now()))(),
-      days:    r.interval,
-      status:  'active',
-      urgent:  r.interval <= 3,
-      completedAt: undefined,
-      completedDay: undefined,
-      missedAt: undefined,
-      _notifiedToday:    false,
-      _notifiedTomorrow: false,
-    };
-    delete newReminder.completedAt;
-    delete newReminder.completedDay;
-
-    if (!window.app.reminders) window.app.reminders = [];
-    window.app.reminders.push(newReminder);
-
-    window.LifeSyncNotifications?.send(
-      r.title, `🔁 Repeated in ${r.interval} day${r.interval > 1 ? 's' : ''}`,
-      { urgency: 'low', sound: false }
-    );
-  }
-
-  // ── Reschedule a missed reminder ───────────────────────────────────────────
-  reschedule(id, newDays) {
-    const r = this._find(id);
-    if (!r) return;
-    r.days   = parseInt(newDays) || 1;
-    r.status = 'active';
-    r.urgent = r.days <= 3;
-    r.missedAt = undefined;
-    r._notifiedToday    = false;
-    r._notifiedTomorrow = false;
-
-    window.saveData?.();
-    window.showToast?.(`📅 Rescheduled for ${newDays} day${newDays > 1 ? 's' : ''}!`);
-    this._renderAll();
-  }
-
-  // ── Restore (un-complete) ──────────────────────────────────────────────────
-  restore(id) {
-    const r = this._find(id);
-    if (!r) return;
-    r.status = 'active';
-    r.completedAt  = undefined;
-    r.completedDay = undefined;
-    r.urgent = r.days <= 3;
-    window.saveData?.();
-    window.showToast?.('↩️ Reminder restored');
-    this._renderAll();
-  }
-
-  // ── Delete ─────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════
+  // DELETE
+  // ═══════════════════════════════
   delete(id) {
-    if (!window.app) return;
-    window.app.reminders = (window.app.reminders || []).filter(r => r.id !== id);
+
+    window.app.reminders =
+      window.app.reminders.filter(
+        r => r.id !== id
+      );
+
     window.saveData?.();
-    this._renderAll();
+
+    this._refresh();
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════
+  // EDIT REMINDER
+  // ═══════════════════════════════
+  edit(id, updates) {
+
+    const r = this._find(id);
+
+    if (!r) return;
+
+    Object.assign(r, updates);
+
+    r._todayAlert = false;
+    r._tomorrowAlert = false;
+    r._missedAlert = false;
+
+    window.saveData?.();
+
+    this._checkAll();
+
+    window.showToast?.('✏️ Reminder updated');
+  }
+
+  // ═══════════════════════════════
+  // ADD REMINDER
+  // ═══════════════════════════════
+  add(data) {
+
+    if (!window.app.reminders)
+      window.app.reminders = [];
+
+    const reminder = {
+
+      id: Date.now(),
+
+      title: data.title || 'Reminder',
+
+      date: data.date,
+
+      category: data.category || 'General',
+
+      status: 'active',
+
+      createdAt: new Date().toISOString()
+
+    };
+
+    window.app.reminders.unshift(reminder);
+
+    window.saveData?.();
+
+    this._checkAll();
+
+    window.showToast?.('✅ Reminder added');
+  }
+
+  // ═══════════════════════════════
+  // REAL RECURRING SYSTEM
+  // ═══════════════════════════════
+  repeatReminder(reminder) {
+
+    if (!reminder.repeatType) return;
+
+    const next = new Date(reminder.date);
+
+    if (reminder.repeatType === 'daily')
+      next.setDate(next.getDate() + 1);
+
+    if (reminder.repeatType === 'weekly')
+      next.setDate(next.getDate() + 7);
+
+    if (reminder.repeatType === 'monthly')
+      next.setMonth(next.getMonth() + 1);
+
+    if (reminder.repeatType === 'yearly')
+      next.setFullYear(next.getFullYear() + 1);
+
+    reminder.date = next.toISOString();
+
+    reminder.status = 'active';
+
+    reminder._todayAlert = false;
+    reminder._tomorrowAlert = false;
+    reminder._missedAlert = false;
+  }
+
+  // ═══════════════════════════════
+  // GOOGLE CALENDAR EXPORT
+  // ═══════════════════════════════
+  exportToGoogleCalendar(id) {
+
+    const r = this._find(id);
+
+    if (!r) return;
+
+    const start = new Date(r.date)
+      .toISOString()
+      .replace(/-|:|\.\d+/g,'');
+
+    const end = start;
+
+    const url =
+      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(r.title)}&dates=${start}/${end}`;
+
+    window.open(url, '_blank');
+  }
+
+  // ═══════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════
   _find(id) {
-    return (window.app?.reminders || []).find(r => r.id === id);
+    return window.app.reminders.find(
+      r => r.id === id
+    );
   }
 
-  _renderAll() {
-    if (typeof window.renderReminders  === 'function') window.renderReminders();
-    if (typeof window.renderHome       === 'function') window.renderHome();
-    if (typeof window.renderNotifications === 'function') window.renderNotifications();
+  _refresh() {
+
+    if (window.renderReminders)
+      window.renderReminders();
+
+    if (window.renderCalendar)
+      window.renderCalendar();
+
+    if (window.renderHome)
+      window.renderHome();
   }
 
-  _tickAnimation(id) {
-    // Find card by data-id and play tick
-    const card = document.querySelector(`[data-reminder-id="${id}"]`);
-    if (!card) return;
-
-    const tick = document.createElement('div');
-    tick.className = 'ls-tick-anim';
-    tick.textContent = '✓';
-    tick.style.cssText = `
-      position:absolute; top:50%; left:50%;
-      transform:translate(-50%,-50%) scale(0);
-      font-size:48px; color:#00e676; font-weight:900;
-      pointer-events:none; z-index:99;
-      animation: lsTickPop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
-    `;
-    card.style.position = 'relative';
-    card.appendChild(tick);
-
-    // Flash card green
-    card.style.transition = 'box-shadow 0.2s, border-color 0.2s';
-    card.style.boxShadow  = '0 0 30px rgba(0,230,118,0.6)';
-    card.style.borderColor = 'rgba(0,230,118,0.8)';
-
-    setTimeout(() => {
-      card.style.boxShadow   = '';
-      card.style.borderColor = '';
-      tick.remove();
-    }, 700);
-  }
-
-  // ── Status counts for badge/briefing ──────────────────────────────────────
-  getCounts() {
-    const reminders  = window.app?.reminders || [];
-    const active     = reminders.filter(r => !r.status || r.status === 'active').length;
-    const completed  = (window.app?.completedReminders || []).length;
-    const missed     = (window.app?.missedReminders     || []).length;
-    const urgent     = reminders.filter(r => r.days <= 3 && r.status !== 'completed' && r.status !== 'missed').length;
-    return { active, completed, missed, urgent };
-  }
 }
 
-// ── CSS for tick animation (injected once) ──────────────────────────────────
-function injectTickCSS() {
-  if (document.getElementById('ls-tick-style')) return;
-  const style = document.createElement('style');
-  style.id    = 'ls-tick-style';
-  style.textContent = `
-    @keyframes lsTickPop {
-      0%   { transform: translate(-50%,-50%) scale(0); opacity:0; }
-      60%  { transform: translate(-50%,-50%) scale(1.3); opacity:1; }
-      100% { transform: translate(-50%,-50%) scale(1);   opacity:0; }
-    }
-    .remind-card-completed {
-      opacity: 0.55;
-      text-decoration: line-through;
-    }
-    .remind-card-missed {
-      border-color: rgba(255,45,120,0.5) !important;
-      box-shadow: 0 0 18px rgba(255,45,120,0.25) !important;
-    }
-    .remind-status-badge {
-      display: inline-flex; align-items: center;
-      padding: 2px 8px; border-radius: 99px;
-      font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
-    }
-    .remind-status-completed {
-      background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.4);
-      color: #00e676;
-    }
-    .remind-status-missed {
-      background: rgba(255,45,120,0.15); border: 1px solid rgba(255,45,120,0.4);
-      color: #ff2d78;
-    }
-    .remind-action-btn {
-      padding: 4px 8px; border-radius: 9px; border: none;
-      font-size: 10px; font-weight: 700; cursor: pointer;
-      font-family: inherit; transition: transform 0.15s;
-    }
-    .remind-action-btn:active { transform: scale(0.88); }
-    .btn-complete {
-      background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.4); color: #00e676;
-    }
-    .btn-snooze {
-      background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.4); color: #00d4ff;
-    }
-    .btn-restore {
-      background: rgba(180,79,255,0.15); border: 1px solid rgba(180,79,255,0.4); color: #b44fff;
-    }
-  `;
-  document.head.appendChild(style);
-}
+// ═══════════════════════════════
+// NEW FEATURES
+// ═══════════════════════════════
 
-// ── Export singleton ─────────────────────────────────────────────────────────
-injectTickCSS();
+// 1️⃣ AUTO MIDNIGHT REFRESH
+setInterval(() => {
+
+  const now = new Date();
+
+  if (
+    now.getHours() === 0 &&
+    now.getMinutes() === 0
+  ) {
+
+    window.ReminderSystem?._checkAll();
+
+  }
+
+}, 60000);
+
+// 2️⃣ SMART UPCOMING FILTER
+window.getUpcomingReminders = function() {
+
+  return (window.app?.reminders || [])
+    .filter(r => r.daysLeft >= 0)
+    .sort((a,b) => a.daysLeft - b.daysLeft);
+
+};
+
+// 3️⃣ TODAY REMINDER COUNT
+window.getTodayReminderCount = function() {
+
+  return (window.app?.reminders || [])
+    .filter(r => r.daysLeft === 0)
+    .length;
+
+};
+
+// ═══════════════════════════════
+// EXPORT
+// ═══════════════════════════════
+
 window.ReminderSystem = new ReminderSystem();
+
 export default window.ReminderSystem;
 
-function completeHabit(id) {
-  const habit = window.app.habits.find(h => h.id === id);
-  if (!habit) return;
+// ═══════════════════════════════
+// START ENGINE
+// ═══════════════════════════════
 
-  const today = new Date().toISOString().split('T')[0];
+window.addEventListener('DOMContentLoaded', () => {
 
-  if (!habit.completedDates) {
-    habit.completedDates = [];
-  }
+  window.ReminderSystem.start();
 
-  if (!habit.completedDates.includes(today)) {
-    habit.completedDates.push(today);
-    habit.streak = (habit.streak || 0) + 1;
-  }
-
-  window.LifeSyncAdvancedNotify?.habitReminder(habit);
-
-  window.saveData?.();
-}
+});
