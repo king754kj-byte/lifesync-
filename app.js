@@ -278,3 +278,13 @@ function _exposeGlobals() {
 }
 
 export { Notifications, ReminderSys, Settings };
+
+setInterval(() => {
+  if (window.renderReminders) {
+    window.renderReminders();
+  }
+}, 60000);
+
+setInterval(() => {
+  window.LifeSyncAdvancedNotify?.dailySummary();
+}, 1000 * 60 * 60 * 24);
