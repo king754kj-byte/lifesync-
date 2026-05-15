@@ -308,3 +308,18 @@ button {
 .card .toggle {
   pointer-events: auto;
 }
+
+.toggle-wrap,
+.toggle-thumb,
+.settings-row {
+  pointer-events: auto !important;
+  z-index: 9999;
+  position: relative;
+}
+
+.card::before,
+.card::after,
+.glass::before,
+.glass::after {
+  pointer-events: none !important;
+}
