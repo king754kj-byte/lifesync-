@@ -1,8 +1,23 @@
 // ══════════════════════════════════════════
-//  LifeSync V2.1 — reminder-system.js
+//  LifeSync V2.2 — reminder-system.js
 //  Reminder Engine: Complete, Missed, Snooze, Repeat, Tick
 // ══════════════════════════════════════════
+function calculateDaysLeft(targetDate) {
+  const today = new Date();
+  const target = new Date(targetDate);
 
+  today.setHours(0,0,0,0);
+  target.setHours(0,0,0,0);
+
+  const diff = target - today;
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+  if (days < 0) return 'Missed';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+
+  return `${days} days left`;
+}
 class ReminderSystem {
   constructor() {
     this.CHECK_INTERVAL_MS = 60 * 1000; // check every minute
@@ -31,10 +46,22 @@ class ReminderSystem {
       if (r.status === 'completed') return;
 
       // Auto-detect missed: days <= 0 and not already marked
-      if (r.days <= this._missedThreshold && r.status !== 'missed' && r.status !== 'completed') {
-        this._markMissed(r);
-      }
+      const today = new Date();
+const target = new Date(r.date);
 
+today.setHours(0,0,0,0);
+target.setHours(0,0,0,0);
+
+const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+
+r.daysLeft = diffDays;
+r.label = calculateDaysLeft(r.date);
+
+window.LifeSyncAdvancedNotify?.smartReminder(r);
+
+if (diffDays < 0) {
+  this._markMissed(r);
+}
       // Upcoming alerts: 1 day or less
       if (r.days === 1 && !r._notifiedTomorrow) {
         r._notifiedTomorrow = true;
@@ -302,3 +329,23 @@ function injectTickCSS() {
 injectTickCSS();
 window.ReminderSystem = new ReminderSystem();
 export default window.ReminderSystem;
+
+function completeHabit(id) {
+  const habit = window.app.habits.find(h => h.id === id);
+  if (!habit) return;
+
+  const today = new Date().toISOString().split('T')[0];
+
+  if (!habit.completedDates) {
+    habit.completedDates = [];
+  }
+
+  if (!habit.completedDates.includes(today)) {
+    habit.completedDates.push(today);
+    habit.streak = (habit.streak || 0) + 1;
+  }
+
+  window.LifeSyncAdvancedNotify?.habitReminder(habit);
+
+  window.saveData?.();
+}
