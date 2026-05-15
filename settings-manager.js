@@ -182,7 +182,7 @@ class SettingsManager {
                 <span class="settings-label">${item.label}</span>
                 <div class="toggle-wrap"
                      style="background:${on ? 'linear-gradient(90deg,#00d4ff,#b44fff)' : 'rgba(255,255,255,0.1)'};box-shadow:${on ? '0 0 10px rgba(0,212,255,0.4)' : 'none'};"
-                     onclick="window.SettingsManager.toggle('${item.key}')">
+                     onclick="toggleSetting('${item.key}')"
                   <div class="toggle-thumb" style="left:${on ? '22px' : '3px'};"></div>
                 </div>
               </div>`;
@@ -208,11 +208,17 @@ window.resetData       = () => window.SettingsManager.resetData();
 export default window.SettingsManager;
 
 window.toggleSetting = function(key) {
-  Settings.toggle(key);
+  if (!window.SettingsManager) return;
+
+  window.SettingsManager.toggle(key);
+
+  setTimeout(() => {
+    window.SettingsManager.render();
+  }, 50);
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  Settings.render();
+  window.SettingsManager.render();
 });
 
 // ═══════════════════════════════════════
@@ -278,10 +284,3 @@ window.LifeSyncSettingsPlus = {
 
 };
 
-document.addEventListener('click', (e) => {
-  const toggle = e.target.closest('.toggle-wrap');
-
-  if (!toggle) return;
-
-  e.stopPropagation();
-});
