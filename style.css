@@ -288,3 +288,23 @@
     padding: 3px 6px;
   }
 }
+
+.remind-action-btn,
+.toggle,
+button {
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 9999;
+}
+
+.card,
+.glass,
+.overlay {
+  pointer-events: none;
+}
+
+.card button,
+.card .toggle {
+  pointer-events: auto;
+}
