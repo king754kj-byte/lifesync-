@@ -364,3 +364,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initAppCheckBadge();
   console.log('[App] LifeSync V2.1 — app.js loaded ✓');
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      await navigator.serviceWorker.register('./service-worker.js');
+      console.log("Service Worker Registered");
+    } catch (err) {
+      console.error("SW failed", err);
+    }
+  });
+}
