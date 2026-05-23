@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   LifeSync Service Worker v2.1
+   LifeSync Service Worker v3.1
    Premium Stable Production Version
 ═══════════════════════════════════════════════════════════════ */
 
