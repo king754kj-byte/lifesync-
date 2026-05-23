@@ -1,320 +1,367 @@
-/* ══════════════════════════════════════════════════════════════════════════
-   LifeSync Premium — service-worker.js
-   Version : lifesync-v2.1
-   Place at : /service-worker.js  (root of project, same folder as index.html)
+/* ═══════════════════════════════════════════════════════════════
+   LifeSync Service Worker v2.1
+   Premium Stable Production Version
+═══════════════════════════════════════════════════════════════ */
 
-   Registered by index.html via:
-     navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+const APP_VERSION = "2.1";
+const CACHE_NAME = "lifesync-v2.1";
 
-   Strategies used:
-   ─ Network-only  : Firebase APIs, Anthropic API, reCAPTCHA (never cache auth)
-   ─ Cache-first   : Google Fonts, CDN assets (stable, safe to serve stale)
-   ─ Network-first : HTML navigation pages (always try fresh)
-   ─ Stale-While-Revalidate : all other local assets (app shell, JS, CSS, icons)
+/* ═══════════════════════════════════════════════════════════════
+   FILES TO CACHE
+═══════════════════════════════════════════════════════════════ */
 
-   Features:
-   ─ Push notifications (Firebase Cloud Messaging payload)
-   ─ Notification click → focus/open app window
-   ─ Background sync registration (reminders sync)
-   ─ SKIP_WAITING message handler (update popup)
-   ─ Auto cache cleanup on activate
-══════════════════════════════════════════════════════════════════════════ */
+const STATIC_ASSETS = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./main.js",
+  "./manifest.json",
+  "./offline.html",
 
-'use strict';
+  "./icon-192.png",
+  "./icon-512.png",
 
-// ── Cache names ──────────────────────────────────────────────────────────────
-const APP_VERSION   = 'lifesync-v2.1';
-const STATIC_CACHE  = APP_VERSION;
-const DYNAMIC_CACHE = APP_VERSION + '-dynamic';
-const FONT_CACHE    = APP_VERSION + '-fonts';
-
-// ── URLs that must NEVER be served from cache (live data / auth) ─────────────
-const NETWORK_ONLY_PATTERNS = [
-  /firestore\.googleapis\.com/,
-  /firebase\.googleapis\.com/,
-  /identitytoolkit\.googleapis\.com/,
-  /securetoken\.googleapis\.com/,
-  /fcm\.googleapis\.com/,
-  /fcmregistrations\.googleapis\.com/,
-  /firebaseinstallations\.googleapis\.com/,
-  /recaptcha\.net/,
-  /recaptcha\.google\.com/,
-  /www\.google\.com\/recaptcha/,
-  /openweathermap\.org/,
-  /open-meteo\.com/,
-  /geocoding-api\.open-meteo\.com/,
-  /anthropic\.com\/v1/,
-  /gstatic\.com\/firebasejs/,   // Firebase SDK itself — always fresh
+  "./calendarEngine.js",
+  "./config.js",
+  "./firestoreService.js",
+  "./habitEngine.js",
+  "./helpers.js",
+  "./indexedDB.js",
+  "./notificationEngine.js",
+  "./reminderEngine.js",
+  "./reminderScheduler.js",
+  "./streakManager.js",
+  "./syncService.js",
+  "./themeManager.js"
 ];
 
-// ── URLs served cache-first (stable CDN / fonts) ─────────────────────────────
-const CACHE_FIRST_PATTERNS = [
-  /fonts\.googleapis\.com/,
-  /fonts\.gstatic\.com/,
-  /cdnjs\.cloudflare\.com/,
-];
+/* ═══════════════════════════════════════════════════════════════
+   INSTALL
+═══════════════════════════════════════════════════════════════ */
 
-// ── App shell URLs to pre-cache on install ───────────────────────────────────
-const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './styles.css',
-  './app.js',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-];
+self.addEventListener("install", (event) => {
 
-/* ════════════════════════════════════════════════════════════════════════════
-   INSTALL — pre-cache app shell
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('install', (event) => {
-  console.log('[SW] Install', APP_VERSION);
+  console.log("[SW] Installing v" + APP_VERSION);
+
+  self.skipWaiting();
+
   event.waitUntil(
-    caches.open(STATIC_CACHE)
+
+    caches.open(CACHE_NAME)
       .then((cache) => {
-        // addAll is all-or-nothing; we wrap each in individual add to be resilient
-        return Promise.allSettled(
-          PRECACHE_URLS.map(url => cache.add(url).catch(err => {
-            console.warn('[SW] Pre-cache skip:', url, err.message);
-          }))
+
+        console.log("[SW] Caching Assets");
+
+        return cache.addAll(STATIC_ASSETS);
+
+      })
+
+  );
+
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   ACTIVATE
+═══════════════════════════════════════════════════════════════ */
+
+self.addEventListener("activate", (event) => {
+
+  console.log("[SW] Activating");
+
+  event.waitUntil(
+
+    caches.keys()
+      .then((keys) => {
+
+        return Promise.all(
+
+          keys.map((key) => {
+
+            if (key !== CACHE_NAME) {
+
+              console.log("[SW] Removing Old Cache:", key);
+
+              return caches.delete(key);
+
+            }
+
+          })
+
         );
+
       })
       .then(() => {
-        // Take control immediately so new SW is active without waiting
-        return self.skipWaiting();
+
+        return self.clients.claim();
+
       })
+
   );
+
 });
 
-/* ════════════════════════════════════════════════════════════════════════════
-   ACTIVATE — clean up old caches
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate', APP_VERSION);
-  const validCaches = new Set([STATIC_CACHE, DYNAMIC_CACHE, FONT_CACHE]);
-  event.waitUntil(
-    caches.keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => !validCaches.has(key))
-            .map((key) => {
-              console.log('[SW] Deleting stale cache:', key);
-              return caches.delete(key);
-            })
-        )
-      )
-      .then(() => self.clients.claim())
-  );
-});
+/* ═══════════════════════════════════════════════════════════════
+   FETCH
+═══════════════════════════════════════════════════════════════ */
 
-/* ════════════════════════════════════════════════════════════════════════════
-   FETCH — routing strategy
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
+self.addEventListener("fetch", (event) => {
 
-  // Only handle GET requests and http/https URLs
-  if (req.method !== 'GET') return;
-  if (!req.url.startsWith('http')) return;
+  if (event.request.method !== "GET") return;
 
-  const url = req.url;
-
-  // ── 1. Network-only: Firebase / Auth / APIs ──────────────────────────────
-  if (NETWORK_ONLY_PATTERNS.some(p => p.test(url))) {
-    event.respondWith(
-      fetch(req).catch(() => new Response(
-        JSON.stringify({ error: 'offline' }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } }
-      ))
-    );
-    return;
-  }
-
-  // ── 2. Cache-first: Google Fonts + CDN ───────────────────────────────────
-  if (CACHE_FIRST_PATTERNS.some(p => p.test(url))) {
-    event.respondWith(
-      caches.open(FONT_CACHE).then((cache) =>
-        cache.match(req).then((hit) => {
-          if (hit) return hit;
-          return fetch(req).then((response) => {
-            if (response && response.ok) {
-              cache.put(req, response.clone());
-            }
-            return response;
-          }).catch(() => hit); // serve stale on failure
-        })
-      )
-    );
-    return;
-  }
-
-  // ── 3. Network-first: HTML navigation (always fresh page) ────────────────
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req)
-        .then((response) => {
-          if (response && response.ok) {
-            caches.open(STATIC_CACHE).then((cache) => cache.put(req, response.clone()));
-          }
-          return response;
-        })
-        .catch(() =>
-          caches.match(req).then((hit) => hit || caches.match('./index.html'))
-        )
-    );
-    return;
-  }
-
-  // ── 4. Stale-While-Revalidate: all other requests (JS, CSS, icons…) ──────
   event.respondWith(
-    caches.open(DYNAMIC_CACHE).then((cache) =>
-      cache.match(req).then((cachedResponse) => {
-        // Always fetch fresh in background
-        const fetchPromise = fetch(req).then((networkResponse) => {
-          if (networkResponse && networkResponse.ok) {
-            cache.put(req, networkResponse.clone());
-          }
-          return networkResponse;
-        }).catch(() => cachedResponse); // network failed → return stale
 
-        // Return cached immediately if available, otherwise wait for network
-        return cachedResponse || fetchPromise;
+    caches.match(event.request)
+      .then((cachedResponse) => {
+
+        /* Return Cache First */
+
+        if (cachedResponse) {
+
+          return cachedResponse;
+
+        }
+
+        /* Fetch From Network */
+
+        return fetch(event.request)
+          .then((networkResponse) => {
+
+            if (!networkResponse || networkResponse.status !== 200) {
+              return networkResponse;
+            }
+
+            const responseClone = networkResponse.clone();
+
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+
+                cache.put(event.request, responseClone);
+
+              });
+
+            return networkResponse;
+
+          })
+          .catch(() => {
+
+            /* Offline Fallback */
+
+            if (event.request.mode === "navigate") {
+
+              return caches.match("./offline.html");
+
+            }
+
+          });
+
       })
-    )
+
   );
+
 });
 
-/* ════════════════════════════════════════════════════════════════════════════
-   PUSH — Firebase Cloud Messaging payload handling
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('push', (event) => {
-  let data = {
-    title: 'LifeSync',
-    body:  'You have a reminder! 🔔',
-    icon:  './icon-192.png',
-    badge: './icon-192.png',
-    url:   './',
-  };
+/* ═══════════════════════════════════════════════════════════════
+   PUSH NOTIFICATIONS
+═══════════════════════════════════════════════════════════════ */
+
+self.addEventListener("push", (event) => {
+
+  let data = {};
 
   try {
-    const payload = event.data ? event.data.json() : {};
-    data = { ...data, ...payload };
-    // Support FCM data-only messages
-    if (payload.data) {
-      data.title = payload.data.title || data.title;
-      data.body  = payload.data.body  || data.body;
-      data.url   = payload.data.url   || data.url;
-    }
-  } catch (err) {
-    // Non-JSON push payload — use text if available
-    try { data.body = event.data.text(); } catch (_) {}
+
+    data = event.data.json();
+
+  } catch (e) {
+
+    data = {
+      title: "LifeSync",
+      body: "You have a new reminder"
+    };
+
   }
 
+  const title = data.title || "LifeSync Reminder";
+
   const options = {
-    body:    data.body,
-    icon:    data.icon,
-    badge:   data.badge,
+
+    body: data.body || "New Notification",
+
+    icon: "./icon-192.png",
+
+    badge: "./icon-192.png",
+
     vibrate: [200, 100, 200],
-    data:    { url: data.url },
-    tag:     'lifesync-reminder',
-    renotify: true,
-    actions: [
-      { action: 'open',    title: '📋 Open App' },
-      { action: 'dismiss', title: '✕ Dismiss'   },
-    ],
-    requireInteraction: false,
+
+    requireInteraction: true,
+
+    data: {
+      url: data.url || "./"
+    }
+
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+
+    self.registration.showNotification(title, options)
+
   );
+
 });
 
-/* ════════════════════════════════════════════════════════════════════════════
-   NOTIFICATION CLICK — open or focus app window
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('notificationclick', (event) => {
+/* ═══════════════════════════════════════════════════════════════
+   NOTIFICATION CLICK
+═══════════════════════════════════════════════════════════════ */
+
+self.addEventListener("notificationclick", (event) => {
+
   event.notification.close();
 
-  // User clicked "Dismiss" action — do nothing
-  if (event.action === 'dismiss') return;
-
-  const targetUrl = event.notification.data?.url || './';
+  const targetUrl = event.notification.data?.url || "./";
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clients) => {
-        // If app already open, focus that tab and send navigation message
-        const existingClient = clients.find((c) =>
-          c.url.includes(self.location.origin)
-        );
-        if (existingClient) {
-          existingClient.focus();
-          existingClient.postMessage({
-            type: 'NOTIFICATION_CLICK',
-            url: targetUrl,
-          });
-          return;
+
+    self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    })
+    .then((clients) => {
+
+      for (const client of clients) {
+
+        if (client.url.includes(targetUrl) && "focus" in client) {
+
+          return client.focus();
+
         }
-        // Otherwise, open a new window
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(targetUrl);
-        }
-      })
+
+      }
+
+      if (self.clients.openWindow) {
+
+        return self.clients.openWindow(targetUrl);
+
+      }
+
+    })
+
   );
+
 });
 
-/* ════════════════════════════════════════════════════════════════════════════
-   BACKGROUND SYNC — sync reminders when connectivity restored
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'background-sync-reminders') {
-    console.log('[SW] Background sync: reminders');
+/* ═══════════════════════════════════════════════════════════════
+   BACKGROUND SYNC
+═══════════════════════════════════════════════════════════════ */
+
+self.addEventListener("sync", (event) => {
+
+  if (event.tag === "background-sync-reminders") {
+
+    console.log("[SW] Background Sync Running");
+
     event.waitUntil(
-      // Notify all open clients to trigger Firestore sync
-      self.clients.matchAll({ type: 'window' }).then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: 'BACKGROUND_SYNC' });
-        });
+
+      self.clients.matchAll({
+        type: "window"
       })
+      .then((clients) => {
+
+        clients.forEach((client) => {
+
+          client.postMessage({
+            type: "BACKGROUND_SYNC"
+          });
+
+        });
+
+      })
+
     );
+
   }
+
 });
 
-/* ════════════════════════════════════════════════════════════════════════════
-   MESSAGE — handle commands from app
-════════════════════════════════════════════════════════════════════════════ */
-self.addEventListener('message', (event) => {
+/* ═══════════════════════════════════════════════════════════════
+   MESSAGE EVENTS
+═══════════════════════════════════════════════════════════════ */
+
+let skipWaitingDone = false;
+
+self.addEventListener("message", (event) => {
+
   const type = event.data?.type;
 
-  // Update available — skip waiting to activate immediately
-  if (type === 'SKIP_WAITING') {
-    console.log('[SW] Received SKIP_WAITING — activating new SW');
-    self.skipWaiting();
-    return;
-  }
+  /* Skip Waiting */
 
-  // Manual cache clear
-  if (type === 'CLEAR_CACHE') {
-    caches.keys()
-      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
-      .then(() => {
-        if (event.source) {
-          event.source.postMessage({ type: 'CACHE_CLEARED' });
-        }
-      });
-    return;
-  }
+  if (type === "SKIP_WAITING") {
 
-  // Version ping
-  if (type === 'GET_VERSION') {
-    if (event.source) {
-      event.source.postMessage({ type: 'VERSION', version: APP_VERSION });
+    console.log("[SW] Skip Waiting");
+
+    if (!skipWaitingDone) {
+
+      skipWaitingDone = true;
+
+      self.skipWaiting();
+
     }
+
     return;
+
   }
+
+  /* Clear Cache */
+
+  if (type === "CLEAR_CACHE") {
+
+    caches.keys()
+      .then((keys) => {
+
+        return Promise.all(
+
+          keys.map((key) => caches.delete(key))
+
+        );
+
+      })
+      .then(() => {
+
+        if (event.source) {
+
+          event.source.postMessage({
+            type: "CACHE_CLEARED"
+          });
+
+        }
+
+      });
+
+    return;
+
+  }
+
+  /* Get Version */
+
+  if (type === "GET_VERSION") {
+
+    if (event.source) {
+
+      event.source.postMessage({
+        type: "VERSION",
+        version: APP_VERSION
+      });
+
+    }
+
+    return;
+
+  }
+
 });
 
-console.log('[SW] LifeSync service-worker.js ready —', APP_VERSION);
+/* ═══════════════════════════════════════════════════════════════
+   READY
+═══════════════════════════════════════════════════════════════ */
+
+console.log("[SW] LifeSync Ready v" + APP_VERSION);
