@@ -1,170 +1,249 @@
 /* ══════════════════════════════════════════════════════════════
-   LifeSync V2.1 — main.js
-   PWA Service Worker + Install Banner + Offline/Update logic
-   This file is the Service Worker source. It should be placed at
-   the ROOT of the project as  /main.js  (same level as index.html)
-   and registered via:
-     navigator.serviceWorker.register('./main.js')
+   LifeSync V2.1 Stable Service Worker
 ══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME   = 'lifesync-v2.1.0';
-const STATIC_CACHE = 'lifesync-static-v2.1.0';
-const DATA_CACHE   = 'lifesync-data-v2.1.0';
+const VERSION = '2.1';
+const STATIC_CACHE = `lifesync-static-${VERSION}`;
+const DATA_CACHE = `lifesync-data-${VERSION}`;
 
-/* ── Assets to pre-cache on install ── */
+/* ─────────────────────────────────────────────────────────────
+   PRE-CACHE FILES
+───────────────────────────────────────────────────────────── */
+
 const PRECACHE_URLS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
-  './main.js',
   './manifest.json',
+  './offline.html',
+
+  './calendarEngine.js',
+  './config.js',
+  './firestoreService.js',
+  './habitEngine.js',
+  './helpers.js',
+  './indexedDB.js',
+  './notificationEngine.js',
+  './reminderEngine.js',
+  './reminderScheduler.js',
+  './streakManager.js',
+  './syncService.js',
+  './themeManager.js',
+
   './icon-192.png',
-  './icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap',
+  './icon-512.png'
 ];
 
-/* ════════════════════════════════════════════════════════════
-   INSTALL — pre-cache all static assets
-════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   INSTALL
+══════════════════════════════════════════════════════════════ */
+
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing LifeSync Service Worker…');
+
+  console.log('[SW] Installing');
+
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      console.log('[SW] Pre-caching static assets');
-      return cache.addAll(PRECACHE_URLS);
-    }).then(() => self.skipWaiting())   // take control immediately
+
+    caches.open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+
   );
+
 });
 
-/* ════════════════════════════════════════════════════════════
-   ACTIVATE — clean up old caches
-════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   ACTIVATE
+══════════════════════════════════════════════════════════════ */
+
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating new Service Worker…');
-  const validCaches = [STATIC_CACHE, DATA_CACHE];
+
+  console.log('[SW] Activating');
+
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => !validCaches.includes(key))
-          .map((key) => {
-            console.log('[SW] Deleting old cache:', key);
+
+    caches.keys().then((keys) => {
+
+      return Promise.all(
+
+        keys.map((key) => {
+
+          if (
+            key !== STATIC_CACHE &&
+            key !== DATA_CACHE
+          ) {
+
+            console.log('[SW] Removing:', key);
+
             return caches.delete(key);
-          })
-      )
-    ).then(() => self.clients.claim())  // take control of all open tabs
+
+          }
+
+        })
+
+      );
+
+    }).then(() => self.clients.claim())
+
   );
+
 });
 
-/* ════════════════════════════════════════════════════════════
-   FETCH — Cache-first for static, Network-first for API
-════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   FETCH
+══════════════════════════════════════════════════════════════ */
+
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
 
-  // Skip non-GET and chrome-extension requests
+  const request = event.request;
+
   if (request.method !== 'GET') return;
-  if (url.protocol === 'chrome-extension:') return;
 
-  // Network-first for Google Fonts (always fresh)
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(networkFirstStrategy(request, DATA_CACHE));
-    return;
-  }
+  event.respondWith(
 
-  // Network-first for any external API calls
-  if (url.hostname !== location.hostname && url.hostname !== 'localhost') {
-    event.respondWith(networkFirstStrategy(request, DATA_CACHE));
-    return;
-  }
+    caches.match(request).then((cached) => {
 
-  // Cache-first for all local app assets
-  event.respondWith(cacheFirstStrategy(request, STATIC_CACHE));
-});
+      if (cached) return cached;
 
-/* ── Cache-first strategy ── */
-async function cacheFirstStrategy(request, cacheName) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (err) {
-    console.warn('[SW] Cache-first fetch failed:', err);
-    // Return cached index.html as fallback for navigation
-    if (request.mode === 'navigate') {
-      return caches.match('./index.html');
-    }
-    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-  }
-}
+      return fetch(request)
+        .then((response) => {
 
-/* ── Network-first strategy ── */
-async function networkFirstStrategy(request, cacheName) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (err) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    console.warn('[SW] Network-first fetch failed, no cache:', err);
-    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-  }
-}
+          if (!response || response.status !== 200) {
+            return response;
+          }
 
-/* ════════════════════════════════════════════════════════════
-   MESSAGE — handle skip-waiting request from update popup
-════════════════════════════════════════════════════════════ */
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[SW] Received SKIP_WAITING, activating now…');
-    self.skipWaiting();
-  }
-});
+          const cloned = response.clone();
 
-/* ════════════════════════════════════════════════════════════
-   PUSH — handle push notifications (optional / future use)
-════════════════════════════════════════════════════════════ */
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title   = data.title   || 'LifeSync';
-  const options = {
-    body:    data.body    || 'You have a new reminder!',
-    icon:    './icon-192.png',
-    badge:   './icon-192.png',
-    vibrate: [200, 100, 200],
-    data:    { url: data.url || './' },
-    actions: [
-      { action: 'view',    title: 'View'    },
-      { action: 'dismiss', title: 'Dismiss' },
-    ],
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
-});
+          caches.open(DATA_CACHE)
+            .then((cache) => {
 
-/* ── Notification click ── */
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  if (event.action === 'dismiss') return;
-  const targetUrl = event.notification.data?.url || './';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url === targetUrl && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) return clients.openWindow(targetUrl);
+              cache.put(request, cloned);
+
+            });
+
+          return response;
+
+        })
+        .catch(() => {
+
+          if (request.mode === 'navigate') {
+
+            return caches.match('./offline.html');
+
+          }
+
+        });
+
     })
+
   );
+
 });
+
+/* ══════════════════════════════════════════════════════════════
+   PUSH NOTIFICATIONS
+══════════════════════════════════════════════════════════════ */
+
+self.addEventListener('push', (event) => {
+
+  let data = {};
+
+  try {
+
+    data = event.data.json();
+
+  } catch {
+
+    data = {
+      title: 'LifeSync',
+      body: 'New Reminder'
+    };
+
+  }
+
+  const options = {
+
+    body: data.body,
+
+    icon: './icon-192.png',
+
+    badge: './icon-192.png',
+
+    vibrate: [200, 100, 200],
+
+    data: {
+      url: data.url || './'
+    }
+
+  };
+
+  event.waitUntil(
+
+    self.registration.showNotification(
+      data.title,
+      options
+    )
+
+  );
+
+});
+
+/* ══════════════════════════════════════════════════════════════
+   NOTIFICATION CLICK
+══════════════════════════════════════════════════════════════ */
+
+self.addEventListener('notificationclick', (event) => {
+
+  event.notification.close();
+
+  const targetUrl =
+    event.notification.data?.url || './';
+
+  event.waitUntil(
+
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    }).then((windowClients) => {
+
+      for (const client of windowClients) {
+
+        if ('focus' in client) {
+
+          return client.focus();
+
+        }
+
+      }
+
+      if (clients.openWindow) {
+
+        return clients.openWindow(targetUrl);
+
+      }
+
+    })
+
+  );
+
+});
+
+/* ══════════════════════════════════════════════════════════════
+   MESSAGE EVENTS
+══════════════════════════════════════════════════════════════ */
+
+self.addEventListener('message', (event) => {
+
+  if (event.data?.type === 'SKIP_WAITING') {
+
+    self.skipWaiting();
+
+  }
+
+});
+
+/* ══════════════════════════════════════════════════════════════
+   READY
+══════════════════════════════════════════════════════════════ */
+
+console.log('[SW] LifeSync Ready v' + VERSION);
