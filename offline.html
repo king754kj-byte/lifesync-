@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>LifeSync — Offline</title>
+<meta name="theme-color" content="#00e5ff" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --blue:   #00d4ff;
+    --green:  #00e676;
+    --bg:     #050508;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Syne', sans-serif;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  /* Ambient orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.12;
+    pointer-events: none;
+    animation: orbFloat 8s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 300px; height: 300px; background: var(--blue);  top: -80px; left: -80px; }
+  .orb-2 { width: 250px; height: 250px; background: var(--green); bottom: -60px; right: -60px; animation-delay: -4s; }
+
+  @keyframes orbFloat {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(20px, 30px) scale(1.1); }
+  }
+
+  /* Icon */
+  .offline-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,230,118,0.15));
+    border: 1px solid rgba(0,212,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    margin-bottom: 28px;
+    box-shadow: 0 0 40px rgba(0,212,255,0.15);
+    animation: iconPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes iconPulse {
+    0%, 100% { box-shadow: 0 0 30px rgba(0,212,255,0.15); }
+    50%       { box-shadow: 0 0 50px rgba(0,212,255,0.3); }
+  }
+
+  /* Text */
+  .title {
+    font-size: 26px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--blue), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #888;
+    line-height: 1.6;
+    max-width: 280px;
+    margin-bottom: 36px;
+  }
+
+  /* Retry button */
+  .retry-btn {
+    padding: 13px 32px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, var(--blue), var(--green));
+    color: #000;
+    font-size: 14px;
+    font-weight: 800;
+    font-family: 'Syne', sans-serif;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    box-shadow: 0 0 20px rgba(0,212,255,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .retry-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 10px rgba(0,212,255,0.2);
+  }
+
+  /* Status pill */
+  .status-pill {
+    margin-top: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 11px;
+    color: #555;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #ff5252;
+    box-shadow: 0 0 8px rgba(255,82,82,0.7);
+    animation: dotBlink 1.5s ease-in-out infinite;
+  }
+  .status-dot.online {
+    background: var(--green);
+    box-shadow: 0 0 8px rgba(0,230,118,0.7);
+    animation: none;
+  }
+  @keyframes dotBlink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* Version */
+  .version {
+    position: fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    font-size: 10px;
+    color: #333;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="offline-icon">📡</div>
+
+<div class="title">You're Offline</div>
+<p class="subtitle">
+  No internet connection detected.<br />
+  Your data is safe — LifeSync will sync when you're back online.
+</p>
+
+<button class="retry-btn" onclick="retryConnection()">Try Again</button>
+
+<div class="status-pill">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">No connection</span>
+</div>
+
+<div class="version">LifeSync v5.5</div>
+
+<script>
+  function retryConnection() {
+    if (navigator.onLine) {
+      window.location.href = './index.html';
+    } else {
+      const btn = document.querySelector('.retry-btn');
+      btn.textContent = 'Still offline...';
+      setTimeout(() => { btn.textContent = 'Try Again'; }, 2000);
+    }
+  }
+
+  function updateStatus() {
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    if (navigator.onLine) {
+      dot.classList.add('online');
+      text.textContent = 'Back online! Redirecting…';
+      setTimeout(() => { window.location.href = './index.html'; }, 800);
+    } else {
+      dot.classList.remove('online');
+      text.textContent = 'No connection';
+    }
+  }
+
+  window.addEventListener('online',  updateStatus);
+  window.addEventListener('offline', updateStatus);
+  updateStatus();
+</script>
+</body>
+</html>
