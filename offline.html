@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>LifeSync — Offline</title>
+<meta name="theme-color" content="#00e5ff" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" type="image/png" href="./icon-192.png" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cyan:   #00d4ff;
+    --green:  #00e676;
+    --orange: #ff9800;
+  }
+
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    font-family: 'Syne', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 24px;
+    padding-top: env(safe-area-inset-top, 24px);
+    padding-bottom: env(safe-area-inset-bottom, 24px);
+    text-align: center;
+    overflow: hidden;
+  }
+
+  /* Background orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Card */
+  .card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 28px;
+    padding: 40px 32px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 0 60px rgba(0,212,255,0.08);
+  }
+
+  .icon-wrap {
+    width: 88px;
+    height: 88px;
+    border-radius: 24px;
+    margin: 0 auto 24px;
+    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,230,118,0.1));
+    border: 1px solid rgba(0,212,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.2); }
+    50%       { box-shadow: 0 0 40px rgba(0,212,255,0.5); }
+  }
+
+  .app-name {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 12px;
+    opacity: 0.7;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 10px;
+    line-height: 1.2;
+  }
+
+  p {
+    font-size: 13px;
+    color: #777;
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 16px;
+    border-radius: 99px;
+    background: rgba(255,152,0,0.1);
+    border: 1px solid rgba(255,152,0,0.3);
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--orange);
+    margin-bottom: 28px;
+    letter-spacing: 0.5px;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+  }
+
+  .retry-btn {
+    width: 100%;
+    padding: 14px 0;
+    border-radius: 16px;
+    border: none;
+    background: linear-gradient(135deg, var(--cyan), var(--green));
+    color: #000;
+    font-size: 14px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 24px rgba(0,212,255,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .retry-btn:active {
+    transform: scale(0.97);
+    box-shadow: 0 0 12px rgba(0,212,255,0.2);
+  }
+
+  .hint {
+    margin-top: 20px;
+    font-size: 11px;
+    color: #333;
+    line-height: 1.5;
+  }
+
+  .hint a {
+    color: var(--cyan);
+    text-decoration: none;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+
+<!-- Background orbs -->
+<div class="orb" style="width:300px;height:300px;background:#00d4ff;top:-80px;left:-80px;"></div>
+<div class="orb" style="width:250px;height:250px;background:#b44fff;bottom:-60px;right:-60px;"></div>
+
+<div class="card">
+
+  <div class="icon-wrap">📡</div>
+
+  <div class="app-name">LifeSync</div>
+  <h1>You're Offline</h1>
+  <p>No internet connection detected.<br>
+     Your data is safely cached and will sync automatically when you're back online.</p>
+
+  <div class="status-pill">
+    <span class="status-dot"></span>
+    Waiting for connection…
+  </div>
+
+  <button class="retry-btn" onclick="retryConnection()">
+    ↺ &nbsp;Try Again
+  </button>
+
+  <p class="hint">
+    Your habits, reminders, and data are all stored locally.<br>
+    <a href="./">Open cached app →</a>
+  </p>
+
+</div>
+
+<script>
+  function retryConnection() {
+    if (navigator.onLine) {
+      window.location.href = './index.html';
+    } else {
+      const btn = document.querySelector('.retry-btn');
+      const orig = btn.textContent;
+      btn.textContent = '📡 Still offline…';
+      btn.style.background = 'rgba(255,152,0,0.2)';
+      btn.style.color = '#ff9800';
+      btn.style.border = '1px solid rgba(255,152,0,0.4)';
+      btn.style.boxShadow = 'none';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.border = '';
+        btn.style.boxShadow = '';
+      }, 2500);
+    }
+  }
+
+  /* Auto-redirect when connection restores */
+  window.addEventListener('online', () => {
+    window.location.href = './index.html';
+  });
+
+  /* Update status pill in real time */
+  function updateStatus() {
+    const pill = document.querySelector('.status-pill');
+    if (!pill) return;
+    if (navigator.onLine) {
+      pill.style.background = 'rgba(0,230,118,0.1)';
+      pill.style.borderColor = 'rgba(0,230,118,0.3)';
+      pill.style.color = '#00e676';
+      pill.querySelector('.status-dot').style.background = '#00e676';
+      pill.childNodes[1].textContent = ' Back online — redirecting…';
+    }
+  }
+
+  window.addEventListener('online', updateStatus);
+  window.addEventListener('offline', updateStatus);
+</script>
+</body>
+</html>
